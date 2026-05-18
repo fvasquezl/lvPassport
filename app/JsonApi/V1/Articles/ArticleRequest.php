@@ -14,12 +14,12 @@ class ArticleRequest extends ResourceRequest
      */
     public function rules(): array
     {
-        // $slug = [
-        //     'required',
-        //     'alpha_dash',
-        //     new Slug,
-        //     Rule::unique(Article::class, 'slug')->ignore($this->model()),
-        // ];
+        $slug = [
+            'required',
+            'alpha_dash',
+            new Slug,
+            Rule::unique(Article::class, 'slug')->ignore($this->model()),
+        ];
 
         return [
             'title' => ['required', 'string', 'max:255'],

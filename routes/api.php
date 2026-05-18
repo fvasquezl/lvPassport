@@ -12,6 +12,7 @@ Route::get('/user', function (Request $request) {
 
 JsonApiRoute::server('v1')
     ->prefix('v1')
+    ->middleware('auth:api')
     ->resources(function (ResourceRegistrar $server) {
         $server->resource('articles', JsonApiController::class)
             ->only('store');

@@ -54,4 +54,9 @@ class ArticleSchema extends Schema
     {
         return PagePagination::make();
     }
+
+    public static function authorizer(): string
+    {
+        return ArticleAuthorizer::class;
+    }
 }

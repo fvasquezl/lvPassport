@@ -3,6 +3,8 @@
 namespace App\JsonApi\V1;
 
 use App\JsonApi\V1\Articles\ArticleSchema;
+use App\JsonApi\V1\Authors\AuthorSchema;
+use App\JsonApi\V1\Categories\CategorySchema;
 use LaravelJsonApi\Core\Server\Server as BaseServer;
 
 class Server extends BaseServer
@@ -27,6 +29,8 @@ class Server extends BaseServer
     {
         return [
             ArticleSchema::class,
+            AuthorSchema::class,
+            CategorySchema::class,
         ];
     }
 }

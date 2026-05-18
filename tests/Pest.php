@@ -130,7 +130,7 @@ function userWithPermission(string $permission, ?User $user = null): User
 {
     $user ??= User::factory()->create();
 
-    $user->givePermissionTo(Permission::findOrCreate($permission));
+    $user->givePermissionTo(Permission::findOrCreate($permission,'api'));
 
     return $user;
 }
