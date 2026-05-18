@@ -1,0 +1,13 @@
+models:
+  Article:
+    title: string
+    slug: string unique
+    content: longtext
+    category_id: id
+    user_id: uuid
+
+  Category:
+    name: string
+    slug: string unique
+    relationships:
+      hasMany: Article
