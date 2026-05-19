@@ -15,5 +15,5 @@ JsonApiRoute::server('v1')
     ->middleware('auth:api')
     ->resources(function (ResourceRegistrar $server) {
         $server->resource('articles', JsonApiController::class)
-            ->only('store');
+            ->only('store','update','destroy');
     });

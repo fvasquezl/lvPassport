@@ -3,6 +3,7 @@
 namespace App\JsonApi\V1\Articles;
 
 use App\Models\Article;
+use App\Rules\Slug;
 use Illuminate\Validation\Rule;
 use LaravelJsonApi\Laravel\Http\Requests\ResourceRequest;
 use LaravelJsonApi\Validation\Rule as JsonApiRule;
@@ -23,7 +24,7 @@ class ArticleRequest extends ResourceRequest
 
         return [
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:255', 'unique:articles,slug'],
+            'slug' => $slug,
             'content' => ['required', 'string'],
             'authors' => ['required', JsonApiRule::toOne()],
             'categories' => ['required', JsonApiRule::toOne()],

@@ -2,6 +2,7 @@
 
 use App\Models\Article;
 use App\Models\User;
+use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\Passport;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
@@ -27,7 +28,7 @@ it('guest users cannot create articles', function () {
 it('returns json errors when no data is sent', function () {
     $user = User::factory()->create();
 
-    /** @var \Laravel\Passport\Contracts\OAuthenticatable $user */
+    /** @var OAuthenticatable $user */
     Passport::actingAs($user);
 
     $this->jsonApi()
@@ -114,7 +115,7 @@ it('can have protection to mass assignment', function () {
 });
 
 it('authors is required', function () {
-    
+
     $data = jsonData(
         $article = Article::factory()->make(),
     );
@@ -149,6 +150,7 @@ it('categories is required', function () {
         $article->getRouteKeyName() => $article->getRouteKey(),
     ]);
 });
+
 it('relationship must be a valid type', function (string $relationship, string $wrongType) {
     $data = jsonData(
         $article = Article::factory()->make(),
@@ -171,7 +173,7 @@ it('relationship must be a valid type', function (string $relationship, string $
         'categories with authors type' => ['categories', 'authors'],
     ]);
 
-    it('rejects empty required attributes', function (string $field) {
+it('rejects empty required attributes', function (string $field) {
     $data = jsonData(
         $article = Article::factory()->make([$field => '']),
     );
@@ -192,6 +194,26 @@ it('relationship must be a valid type', function (string $relationship, string $
         'title', 'content',
     ]);
 
+it('slug is required', function () {
+
+    $data = jsonData(
+        $article = Article::factory()->make(['slug' => ''])
+    );
+
+    Passport::actingAs(userWithPermission('articles:store', $article->user));
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.articles.store'))
+        ->assertUnprocessable() // 422
+        ->assertSee('data\/attributes\/slug');
+
+    $this->assertDatabaseMissing('articles', [
+        $article->getRouteKeyName() => $article->getRouteKey(),
+    ]);
+
+});
+
 it('slug must be unique', function () {
     Article::factory()->create(['slug' => 'same-slug']);
 
@@ -208,7 +230,85 @@ it('slug must be unique', function () {
         ->assertSee('data\/attributes\/slug');
 
     $this->assertDatabaseCount('articles', 1);
+});
 
+it('slug must only contain letters numbers and dashes', closure: function () {
+
+    $data = jsonData(
+        $article = Article::factory()->make(['slug' => '%$%#@'])
+    );
+
+    Passport::actingAs(userWithPermission('articles:store', $article->user));
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.articles.store'))
+        ->assertUnprocessable() // 422
+        ->assertSee('data\/attributes\/slug');
+
+    $this->assertDatabaseMissing('articles', [
+        $article->getRouteKeyName() => $article->getRouteKey(),
+    ]);
+});
+
+it('slug must not contain underscores', function () {
+
+    $data = jsonData(
+        $article = Article::factory()->make(['slug' => 'with_underscores'])
+    );
+
+    Passport::actingAs(userWithPermission('articles:store', $article->user));
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.articles.store'))
+        ->assertSee(__('validation.no_underscores', ['attribute' => 'slug']))
+        ->assertUnprocessable() // 422
+        ->assertSee('data\/attributes\/slug');
+
+    $this->assertDatabaseMissing('articles', [
+        $article->getRouteKeyName() => $article->getRouteKey(),
+    ]);
+});
+
+it('slug must not start with dashes', function () {
+
+    $data = jsonData(
+        $article = Article::factory()->make(['slug' => '-start-with-dashes'])
+    );
+
+    Passport::actingAs(userWithPermission('articles:store', $article->user));
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.articles.store'))
+        ->assertSee(__('validation.no_starting_dashes', ['attribute' => 'slug']))
+        ->assertUnprocessable() // 422
+        ->assertSee('data\/attributes\/slug');
+
+    $this->assertDatabaseMissing('articles', [
+        $article->getRouteKeyName() => $article->getRouteKey(),
+    ]);
+});
+
+it('slug must not end with dashes', function () {
+
+    $data = jsonData(
+        $article = Article::factory()->make(['slug' => 'start-with-dashes-'])
+    );
+
+    Passport::actingAs(userWithPermission('articles:store', $article->user));
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.articles.store'))
+        ->assertSee(__('validation.no_ending_dashes', ['attribute' => 'slug']))
+        ->assertUnprocessable() // 422
+        ->assertSee('data\/attributes\/slug');
+
+    $this->assertDatabaseMissing('articles', [
+        $article->getRouteKeyName() => $article->getRouteKey(),
+    ]);
 });
 
 it('rejects invalid slugs', function (string $slug, ?string $translationKey = null) {

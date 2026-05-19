@@ -63,7 +63,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function update(Request $request, object $model): bool|Response
     {
-        // TODO: Implement update() method.
+        return false;
     }
 
     /**
