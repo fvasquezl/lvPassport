@@ -63,7 +63,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function update(Request $request, object $model): bool|Response
     {
-        return false;
+        return Gate::inspect('update', $model);
     }
 
     /**
@@ -114,7 +114,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function updateRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
-        // TODO: Implement updateRelationship() method.
+        return Gate::inspect('update' . ucfirst($fieldName), $model);
     }
 
     /**

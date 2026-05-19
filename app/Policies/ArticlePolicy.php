@@ -29,8 +29,9 @@ class ArticlePolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('articles:store')
-        && (string) $user->getRouteKey() === (string) request()->input('data.relationships.authors.data.id');
+        return $user->tokenCan('articles:store')
+            && $user->hasPermissionTo('articles:store')
+            && (string) $user->getRouteKey() === (string) request()->input('data.relationships.authors.data.id');
     }
 
     /**
@@ -38,7 +39,9 @@ class ArticlePolicy
      */
     public function update(User $user, Article $article): bool
     {
-        return false;
+        return $user->tokenCan('articles:update')
+            && $user->hasPermissionTo('articles:update')
+            && $article->user->is($user);
     }
 
     /**
@@ -63,5 +66,19 @@ class ArticlePolicy
     public function forceDelete(User $user, Article $article): bool
     {
         return false;
+    }
+
+    public function updateCategories(User $user, Article $article): bool
+    {
+        return $user->tokenCan('articles:update-categories')
+            && $user->hasPermissionTo('articles:update-categories')
+            && $article->user->is($user);
+    }
+
+    public function updateAuthors(User $user, Article $article): bool
+    {
+        return $user->tokenCan('articles:update-authors')
+            && $user->hasPermissionTo('articles:update-authors')
+            && $article->user->is($user);
     }
 }

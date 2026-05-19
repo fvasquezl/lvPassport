@@ -9,6 +9,8 @@ use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
     Permission::findOrCreate('articles:update', 'api');
+    Permission::findOrCreate('articles:update-categories', 'api');
+
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
@@ -26,13 +28,15 @@ it('guest users cannot update articles', closure: function () {
 });
 
 it('authenticated users can update their articles', function () {
+
     $article = Article::factory()->create();
     $article->title = 'Title changed';
     $article->content = 'Content changed';
 
     $data = jsonData($article);
+    $user =userWithPermission('articles:update', $article->user);
 
-    Passport::actingAs(userWithPermission('articles:update', $article->user));
+    Passport::actingAs($user,['articles:update']);
 
     $this->jsonApi()
         ->withData($data)
@@ -90,7 +94,7 @@ it('authenticated users can update single attribute', function (array $attribute
     $article = Article::factory()->create();
     $user = userWithPermission('articles:update', $article->user);
 
-    Passport::actingAs($user);
+    Passport::actingAs($user, ['articles:update']);
 
     $this->jsonApi()
         ->withData([
@@ -112,9 +116,9 @@ it('can replace the categories', function () {
     $article = Article::factory()->create();
     $category = Category::factory()->create();
 
-    Passport::actingAs(
-        userWithPermission('articles:update-categories', $article->user)
-    );
+    $user = userWithPermission('articles:update-categories', $article->user);
+
+    Passport::actingAs($user, ['articles:update-categories']);
 
     $this->jsonApi()
         ->withData([
@@ -134,9 +138,9 @@ it('can replace the author', function () {
     $article = Article::factory()->create();
     $author = User::factory()->create();
 
-    Passport::actingAs(
-        userWithPermission('articles:update-authors', $article->user)
-    );
+    $user = userWithPermission('articles:update-authors', $article->user);
+
+    Passport::actingAs($user, ['articles:update-authors']);
 
     $this->jsonApi()
 

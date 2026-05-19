@@ -15,5 +15,10 @@ JsonApiRoute::server('v1')
     ->middleware('auth:api')
     ->resources(function (ResourceRegistrar $server) {
         $server->resource('articles', JsonApiController::class)
-            ->only('store','update','destroy');
+            ->only('store', 'update', 'destroy')
+            ->relationships(function ($relationships) {
+                $relationships->hasOne('categories')->only('show', 'update');
+                $relationships->hasOne('authors')->only('show', 'update');
+            });
+
     });
