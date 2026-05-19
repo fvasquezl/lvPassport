@@ -46,8 +46,9 @@ it('authenticated users can create articles', function () {
     $data = jsonData(
         $article = Article::factory()->make()
     );
+    $user = userWithPermission('articles:store', $article->user);
 
-    Passport::actingAs(userWithPermission('articles:store', $article->user));
+    Passport::actingAs($user,['articles:store']);
 
     $response = $this->jsonApi()
         ->withData($data)
@@ -177,7 +178,7 @@ it('rejects empty required attributes', function (string $field) {
     $data = jsonData(
         $article = Article::factory()->make([$field => '']),
     );
-    
+
     Passport::actingAs(userWithPermission('articles:store', $article->user));
 
     $this->jsonApi()
