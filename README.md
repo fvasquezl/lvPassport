@@ -69,6 +69,34 @@ Mismo patrón aplicado a `store`:
 - `authenticated users cannot create articles without permissions` — scope sin permission → **403**.
 - `authenticated users cannot create articles on behalf of other user` — scope + permission, pero `authors` apunta a **otro** usuario → **403** (ownership en `ArticlePolicy::create()`).
 
+#### `tests/Feature/Articles/DeleteArticlesTest.php`
+
+Mismo patrón aplicado a `delete`, con aserción de BD adicional:
+
+| Test                                                                   | Scope | Permission | Dueño | Status  | Qué prueba                                                     |
+| ---------------------------------------------------------------------- | :---: | :--------: | :---: | :-----: | -------------------------------------------------------------- |
+| `guest users cannot delete articles`                                   |   —   |     —      |   —   | **401** | Sin token no se llega al policy.                               |
+| `authenticated users can delete their articles`                        |  ✅   |     ✅     |  ✅   | **204** | Happy path: artículo eliminado (`assertDatabaseEmpty`).        |
+| `authenticated users cannot delete their articles without permissions` |  ✅   |     ❌     |  ✅   | **403** | Scope + ownership no bastan (`assertDatabaseHas` verifica BD). |
+| `authenticated users cannot delete other articles`                     |  ✅   |     ✅     |  ❌   | **403** | Scope + permission no bastan (`assertDatabaseHas` verifica BD).|
+
+> Los tests de 403 usan `assertDatabaseHas('articles', ['id' => $article->id])` para confirmar que el artículo no fue borrado, y el happy path usa `assertDatabaseEmpty('articles')`.
+
+#### `tests/Feature/Articles/ListArticlesTest.php`
+
+Las lecturas (`show` e `index`) **no tienen ownership** — cualquier usuario autenticado puede leer cualquier artículo. Solo se verifican scope y permission.
+
+| Test                                                          | Scope | Permission | Status  | Qué prueba                                          |
+| ------------------------------------------------------------- | :---: | :--------: | :-----: | --------------------------------------------------- |
+| `guest users cannot fetch an article`                         |   —   |     —      | **401** | Sin token no hay acceso a `show`.                   |
+| `authenticated users can fetch an article`                    |  ✅   |     ✅     | **200** | Cualquier usuario con scope+permission puede leer.  |
+| `authenticated users cannot fetch an article without permission` | ✅ |     ❌     | **403** | El scope solo no basta.                             |
+| `guest users cannot fetch all articles`                       |   —   |     —      | **401** | Sin token no hay acceso a `index`.                  |
+| `authenticated users cannot fetch all articles without permission` | ✅ |    ❌     | **403** | El scope `articles:index` solo no basta.            |
+| `can fetch all articles`                                      |  ✅   |     ✅     | **200** | Happy path del listado.                             |
+
+> `beforeEach` registra **dos** permissions: `articles:read` (para `show`) y `articles:index` (para `index`). Scopes distintos porque son acciones distintas.
+
 ### Por qué usar las dos capas
 
 Responden preguntas distintas:
