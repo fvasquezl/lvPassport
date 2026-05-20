@@ -12,7 +12,8 @@ class ArticlePolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->tokenCan('articles:index')
+            && $user->hasPermissionTo('articles:index');
     }
 
     /**
@@ -20,7 +21,8 @@ class ArticlePolicy
      */
     public function view(User $user, Article $article): bool
     {
-        return false;
+        return $user->tokenCan('articles:read')
+            && $user->hasPermissionTo('articles:read');
     }
 
     /**
@@ -48,7 +50,9 @@ class ArticlePolicy
      */
     public function delete(User $user, Article $article): bool
     {
-        return false;
+        return $user->tokenCan('articles:delete')
+            && $user->hasPermissionTo('articles:delete')
+            && $article->user->is($user);
     }
 
     /**

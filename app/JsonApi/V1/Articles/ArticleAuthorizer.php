@@ -14,7 +14,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function index(Request $request, string $modelClass): bool|Response
     {
-        // TODO: Implement index() method.
+        return Gate::inspect('viewAny', $modelClass);
     }
 
     /**
@@ -37,7 +37,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function show(Request $request, object $model): bool|Response
     {
-        // TODO: Implement show() method.
+        return Gate::inspect('view', $model);
     }
 
     /**
@@ -53,7 +53,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function destroy(Request $request, object $model): bool|Response
     {
-        // TODO: Implement destroy() method.
+        return Gate::inspect('delete', $model);
     }
 
     /**
