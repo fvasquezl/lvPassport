@@ -12,13 +12,33 @@ Route::get('/user', function (Request $request) {
 
 JsonApiRoute::server('v1')
     ->prefix('v1')
-    ->middleware('auth:api')
     ->resources(function (ResourceRegistrar $server) {
         $server->resource('articles', JsonApiController::class)
-            ->only('index','store', 'update', 'destroy', 'show')
+            ->middleware([
+                '*' => [],
+                'store' => 'auth:api',
+                'update' => 'auth:api',
+                'destroy' => 'auth:api'
+            ])
             ->relationships(function ($relationships) {
-                $relationships->hasOne('categories')->only('show', 'update');
-                $relationships->hasOne('authors')->only('show', 'update');
+                $relationships->hasOne('authors')->only('update');
+                $relationships->hasOne('categories')->only('update');
             });
 
+//        // Authors — solo lectura
+//        $server->resource('authors', JsonApiController::class)
+//            ->relationships(function ($server) {
+//                $server->hasMany('articles')->except('update', 'attach', 'detach');
+//            })->only('index', 'show');
+//
+//        $server->resource('categories', JsonApiController::class)
+//            ->relationships(function ($server) {
+//                $server->hasMany('articles')->except('update', 'attach', 'detach');
+//            });
+
     });
+
+
+
+
+

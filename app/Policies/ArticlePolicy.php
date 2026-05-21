@@ -12,8 +12,7 @@ class ArticlePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->tokenCan('articles:index')
-            && $user->hasPermissionTo('articles:index');
+        return $user->tokenCan('articles:index');
     }
 
     /**
@@ -21,8 +20,7 @@ class ArticlePolicy
      */
     public function view(User $user, Article $article): bool
     {
-        return $user->tokenCan('articles:read')
-            && $user->hasPermissionTo('articles:read');
+        return $user->tokenCan('articles:show');
     }
 
     /**

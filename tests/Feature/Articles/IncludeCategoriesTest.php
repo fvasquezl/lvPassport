@@ -1,14 +1,23 @@
 <?php
 
 use App\Models\Article;
+use App\Models\User;
+use Laravel\Passport\Passport;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * http://localhost/api/v1/articles?include=categories
  * http://localhost/api/v1/articles/category-slug?include=categories
  */
+
+
 it('can include categories', function () {
 
     $article = Article::factory()->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user,['articles:show']);
 
     $this->jsonApi()
         ->includePaths('categories')
