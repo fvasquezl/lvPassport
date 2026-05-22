@@ -4,8 +4,7 @@ use App\Models\Article;
 use App\Models\User;
 use Laravel\Passport\Passport;
 
-
-it('guest users cannot fetch an article',function(){
+it('guest users cannot fetch an article', function () {
     $article = Article::factory()->create();
 
     $this->jsonApi()
@@ -13,7 +12,7 @@ it('guest users cannot fetch an article',function(){
         ->assertUnauthorized(); // 401
 });
 
-it('authenticated users can fetch an article',function(){
+it('authenticated users can fetch an article', function () {
     $article = Article::factory()->create();
 
     $user = User::factory()->create();
@@ -45,7 +44,7 @@ it('authenticated users can fetch an article',function(){
         ]);
 });
 
-it('authenticated users cannot fetch an article without scope',function(){
+it('authenticated users cannot fetch an article without scope', function () {
     $article = Article::factory()->create();
 
     $user = User::factory()->create();
@@ -56,15 +55,15 @@ it('authenticated users cannot fetch an article without scope',function(){
         ->assertForbidden(); // 403
 });
 
-it('guest users cannot fetch all articles',function(){
-   Article::factory()->count(3)->create();
+it('guest users cannot fetch all articles', function () {
+    Article::factory()->count(3)->create();
 
     $this->jsonApi()
         ->get(route('api.v1.articles.index'))
         ->assertUnauthorized(); // 401
 });
 
-it('authenticated users cannot fetch all articles without token scope',function(){
+it('authenticated users cannot fetch all articles without token scope', function () {
     Article::factory()->count(3)->create();
 
     $user = User::factory()->create();

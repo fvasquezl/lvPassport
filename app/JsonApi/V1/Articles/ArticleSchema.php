@@ -29,7 +29,7 @@ class ArticleSchema extends Schema
             ID::make()->matchAs('[a-z0-9]+(?:-[a-z0-9]+)*'),
             Str::make('title')->sortable(),
             Str::make('slug')->sortable(),
-            Str::make('content')->sortable(),
+            Str::make('content'),
             DateTime::make('createdAt')->sortable()->readOnly(),
             DateTime::make('updatedAt')->sortable()->readOnly(),
             BelongsTo::make('categories', 'category'),

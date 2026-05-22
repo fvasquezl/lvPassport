@@ -25,8 +25,8 @@ it('guest users cannot create articles', function () {
 });
 
 it('returns json errors when no data is sent', function () {
-    $user = User::factory()->create();
 
+    $user = userWithPermission('articles:store');
     Passport::actingAs($user, ['articles:store']);
 
     $this->jsonApi()
@@ -112,6 +112,19 @@ it('can have protection to mass assignment', function () {
         ->withData($data)
         ->post(route('api.v1.articles.store'))
         ->assertStatus(400);
+    $this->assertDatabaseEmpty('articles');
+});
+
+it('users without permission get 403 even when authors relationship is missing', function () {
+    $data = jsonData($article = Article::factory()->make());
+
+    unset($data['relationships']['authors']);
+    Passport::actingAs($article->user, ['articles:store']);
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.articles.store'))
+        ->assertForbidden(); // espera 403, actualmente devuelve 422
     $this->assertDatabaseEmpty('articles');
 });
 

@@ -89,13 +89,13 @@ Las lecturas (`show` e `index`) **no tienen ownership** — cualquier usuario au
 | Test                                                          | Scope | Permission | Status  | Qué prueba                                          |
 | ------------------------------------------------------------- | :---: | :--------: | :-----: | --------------------------------------------------- |
 | `guest users cannot fetch an article`                         |   —   |     —      | **401** | Sin token no hay acceso a `show`.                   |
-| `authenticated users can fetch an article`                    |  ✅   |     ✅     | **200** | Cualquier usuario con scope+permission puede leer.  |
-| `authenticated users cannot fetch an article without permission` | ✅ |     ❌     | **403** | El scope solo no basta.                             |
+| `authenticated users can fetch an article`                    |  ✅   |     —      | **200** | Solo el scope es necesario para leer.               |
+| `authenticated users cannot fetch an article without scope`   |  ❌   |     —      | **403** | Sin scope no hay acceso.                            |
 | `guest users cannot fetch all articles`                       |   —   |     —      | **401** | Sin token no hay acceso a `index`.                  |
-| `authenticated users cannot fetch all articles without permission` | ✅ |    ❌     | **403** | El scope `articles:index` solo no basta.            |
-| `can fetch all articles`                                      |  ✅   |     ✅     | **200** | Happy path del listado.                             |
+| `authenticated users cannot fetch all articles without token scope` | ❌ |    —     | **403** | El scope `articles:index` es obligatorio.           |
+| `can fetch all articles`                                      |  ✅   |     —      | **200** | Happy path del listado.                             |
 
-> `beforeEach` registra **dos** permissions: `articles:read` (para `show`) y `articles:index` (para `index`). Scopes distintos porque son acciones distintas.
+> Las lecturas **no requieren permiso Spatie** — solo el scope del token. `ListArticlesTest` usa `User::factory()->create()` sin `userWithPermission()`.
 
 ### Por qué usar las dos capas
 
@@ -116,6 +116,40 @@ Lo que el usuario puede hacer en una petición es la **intersección** del scope
 
 - Las permissions se registran en `beforeEach` (`Permission::findOrCreate('articles:update', 'api')`) y el cache de Spatie se limpia con `app(PermissionRegistrar::class)->forgetCachedPermissions()`. El helper `userWithPermission()` (en `tests/Pest.php`) hace `findOrCreate` internamente, así que sólo necesitas registrar a mano las permissions que no pasen por ese helper.
 - El guard `api` debe coincidir tanto en Passport como en Spatie. Si registras la permission en otro guard, `hasPermissionTo()` no la encuentra.
+
+---
+
+## Recursos implementados
+
+### Articles (`/api/v1/articles`)
+
+CRUD completo con autorización de tres capas: scope del token + permiso Spatie + ownership del recurso.
+
+| Acción | Middleware | Autorización |
+|--------|-----------|--------------|
+| `index`, `show` | — | `tokenCan()` únicamente — cualquier usuario autenticado con el scope puede leer |
+| `store` | `auth:api` | `tokenCan + hasPermissionTo + ownership` (el autor debe ser el usuario autenticado) |
+| `update` | `auth:api` | `tokenCan + hasPermissionTo + ownership` |
+| `destroy` | `auth:api` | `tokenCan + hasPermissionTo + ownership` |
+
+Relaciones disponibles: `authors` (to-one), `categories` (to-one).
+
+### Categories (`/api/v1/categories`)
+
+CRUD completo. Sin ownership (las categorías no pertenecen a un usuario). Lecturas públicas.
+
+| Acción | Middleware | Autorización |
+|--------|-----------|--------------|
+| `index`, `show` | — | Público — sin autenticación |
+| `store` | `auth:api` | `hasPermissionTo('categories:store')` únicamente — sin `tokenCan` |
+| `update` | `auth:api` | `hasPermissionTo('categories:update')` |
+| `destroy` | `auth:api` | `hasPermissionTo('categories:delete')` |
+
+Relación disponible: `articles` (to-many, solo lectura).
+
+> **¿Por qué Categories no usa `tokenCan`?** Las categorías son datos del sistema, no contenido de usuario. No tiene sentido discriminar por aplicación cliente para gestionarlas.
+
+---
 
 ## About Laravel
 

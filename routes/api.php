@@ -18,37 +18,38 @@ JsonApiRoute::server('v1')
                 '*' => [],
                 'store' => 'auth:api',
                 'update' => 'auth:api',
-                'destroy' => 'auth:api'
+                'destroy' => 'auth:api',
             ])
             ->relationships(function ($relationships) {
                 $relationships
                     ->hasOne('authors')
                     ->middleware([
-                        '*' =>[],
-                        'update'=>'auth:api'
+                        '*' => [],
+                        'update' => 'auth:api',
                     ]);
                 $relationships
                     ->hasOne('categories')
                     ->middleware([
-                        '*' =>[],
-                        'update'=>'auth:api'
+                        '*' => [],
+                        'update' => 'auth:api',
                     ]);
             });
 
-//        // Authors — solo lectura
-//        $server->resource('authors', JsonApiController::class)
-//            ->relationships(function ($server) {
-//                $server->hasMany('articles')->except('update', 'attach', 'detach');
-//            })->only('index', 'show');
-//
-//        $server->resource('categories', JsonApiController::class)
-//            ->relationships(function ($server) {
-//                $server->hasMany('articles')->except('update', 'attach', 'detach');
-//            });
+        //        // Authors — solo lectura
+        //        $server->resource('authors', JsonApiController::class)
+        //            ->relationships(function ($server) {
+        //                $server->hasMany('articles')->except('update', 'attach', 'detach');
+        //            })->only('index', 'show');
+        //
+                $server->resource('categories', JsonApiController::class)
+                    ->middleware([
+                        '*' => [],
+                        'store' => 'auth:api',
+                        'update' => 'auth:api',
+                        'destroy' => 'auth:api',
+                    ])
+                    ->relationships(function ($server) {
+                        $server->hasMany('articles')->readOnly();
+                    });
 
     });
-
-
-
-
-

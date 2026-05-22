@@ -28,9 +28,10 @@ class ArticlePolicy
      */
     public function create(User $user): bool
     {
+
         return $user->tokenCan('articles:store')
-            && $user->hasPermissionTo('articles:store')
-            && (string) $user->getRouteKey() === (string) request()->input('data.relationships.authors.data.id');
+            && $user->hasPermissionTo('articles:store');
+
     }
 
     /**

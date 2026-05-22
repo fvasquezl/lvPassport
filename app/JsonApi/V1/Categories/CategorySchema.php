@@ -5,6 +5,7 @@ namespace App\JsonApi\V1\Categories;
 use App\Models\Category;
 use LaravelJsonApi\Eloquent\Fields\DateTime;
 use LaravelJsonApi\Eloquent\Fields\ID;
+use LaravelJsonApi\Eloquent\Fields\Relations\HasMany;
 use LaravelJsonApi\Eloquent\Fields\Str;
 use LaravelJsonApi\Eloquent\Schema;
 
@@ -20,6 +21,7 @@ class CategorySchema extends Schema
             Str::make('slug'),
             DateTime::make('createdAt')->readOnly(),
             DateTime::make('updatedAt')->readOnly(),
+            HasMany::make('articles')
         ];
     }
 }
