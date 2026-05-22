@@ -21,6 +21,7 @@
         "jasonmccreary/laravel-test-assertions": "^2.9",
         "laravel-json-api/testing": "^3.2",
         "laravel-shift/blueprint": "^2.13",
+        "laravel/boost": "^2.4",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",

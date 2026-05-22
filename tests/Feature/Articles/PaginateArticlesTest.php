@@ -1,10 +1,15 @@
 <?php
 
 use App\Models\Article;
+use App\Models\User;
+use Laravel\Passport\Passport;
 
 test('can fetch paginate articles', function () {
 
     Article::factory()->count(10)->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user,['articles:index']);
 
     $url = route('api.v1.articles.index', ['page[size]' => 2, 'page[number]' => 3]);
 

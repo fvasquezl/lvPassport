@@ -82,4 +82,14 @@ class ArticlePolicy
             && $user->hasPermissionTo('articles:update-authors')
             && $article->user->is($user);
     }
+
+    public function showAuthors(User $user, Article $article): bool
+    {
+        return $user->tokenCan('articles:show-authors');
+    }
+
+    public function showCategories(User $user, Article $article): bool
+    {
+        return $user->tokenCan('articles:show-categories');
+    }
 }

@@ -15,7 +15,7 @@ class CategorySchema extends Schema
     public function fields(): array
     {
         return [
-            ID::make(),
+            ID::make()->matchAs('[a-z0-9]+(?:-[a-z0-9]+)*'),
             Str::make('name'),
             Str::make('slug'),
             DateTime::make('createdAt')->readOnly(),

@@ -61,7 +61,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function showRelated(Request $request, object $model, string $fieldName): bool|Response
     {
-        // TODO: Implement showRelated() method.
+        return Gate::inspect('show'.ucfirst($fieldName), $model);
     }
 
     /**
@@ -69,7 +69,7 @@ class ArticleAuthorizer implements Authorizer
      */
     public function showRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
-        // TODO: Implement showRelationship() method.
+        return Gate::inspect('show'.ucfirst($fieldName), $model);
     }
 
     /**

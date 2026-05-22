@@ -21,8 +21,18 @@ JsonApiRoute::server('v1')
                 'destroy' => 'auth:api'
             ])
             ->relationships(function ($relationships) {
-                $relationships->hasOne('authors')->only('update');
-                $relationships->hasOne('categories')->only('update');
+                $relationships
+                    ->hasOne('authors')
+                    ->middleware([
+                        '*' =>[],
+                        'update'=>'auth:api'
+                    ]);
+                $relationships
+                    ->hasOne('categories')
+                    ->middleware([
+                        '*' =>[],
+                        'update'=>'auth:api'
+                    ]);
             });
 
 //        // Authors — solo lectura

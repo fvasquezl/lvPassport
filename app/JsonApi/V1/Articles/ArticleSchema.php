@@ -45,6 +45,11 @@ class ArticleSchema extends Schema
     {
         return [
             WhereIdIn::make($this),
+            Scope::make('title'),
+            Scope::make('content'),
+            Scope::make('year'),
+            Scope::make('month'),
+            Scope::make('search'),
             Scope::make('categories'),
             Scope::make('authors'),
         ];

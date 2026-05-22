@@ -3,6 +3,7 @@
 use App\Models\Article;
 use App\Models\Category;
 use App\Models\User;
+use Laravel\Passport\Passport;
 
 it('can filter articles by title', function () {
 
@@ -13,6 +14,9 @@ it('can filter articles by title', function () {
     Article::factory()->create([
         'title' => 'Other Article',
     ]);
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
 
     $url = route('api.v1.articles.index', ['filter[title]' => 'Laravel']);
 
@@ -35,6 +39,9 @@ it('can filter articles by content', function () {
         'content' => '<div>Other Article</div>',
     ]);
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
+
     $url = route('api.v1.articles.index', ['filter[content]' => 'Laravel']);
 
     $this->jsonApi()->get($url)
@@ -54,6 +61,9 @@ it('can filter articles by year', function () {
         'title' => 'Article from 2021',
         'created_at' => now()->year(2021),
     ]);
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
 
     $url = route('api.v1.articles.index', ['filter[year]' => 2020]);
 
@@ -79,6 +89,9 @@ it('can filter articles by month', function () {
         'created_at' => now()->startOfMonth()->setMonth(1),
     ]);
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
+
     $url = route('api.v1.articles.index', ['filter[month]' => 2]);
 
     $this->jsonApi()->get($url)
@@ -91,6 +104,9 @@ it('can filter articles by month', function () {
 it('cannot filter articles by unknown filters', function () {
 
     Article::factory()->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
 
     $url = route('api.v1.articles.index', ['filter[unknown]' => 2]);
 
@@ -114,6 +130,9 @@ it('can search articles by title and content', function () {
         'content' => 'Content 2',
     ]);
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
+
     $url = route('api.v1.articles.index', ['filter[search]' => 'Aprendible']);
 
     $this->jsonApi()->get($url)->assertJsonCount(2, 'data')
@@ -122,7 +141,7 @@ it('can search articles by title and content', function () {
         ->assertDontSee('Content 2');
 });
 
-it('can search articles by title and conten with multiple terms', function () {
+it('can search articles by title and content with multiple terms', function () {
 
     Article::factory()->create([
         'title' => 'Article from Aprendible',
@@ -144,6 +163,9 @@ it('can search articles by title and conten with multiple terms', function () {
         'content' => 'Content 2',
     ]);
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
+
     $url = route('api.v1.articles.index', ['filter[search]' => 'Aprendible Laravel']);
 
     $this->jsonApi()->get($url)->assertJsonCount(3, 'data')
@@ -162,6 +184,9 @@ it('can filter articles by categories', function () {
 
     $category = Category::factory()->hasArticles(2)->create();
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
+
     $this->jsonApi()
         ->filter(['categories' => $category->getRouteKey()])
         ->get(route('api.v1.articles.index'))
@@ -179,6 +204,9 @@ it('can filter articles by multiple categories', function () {
     $category = Category::factory()->hasArticles(2)->create();
     $category2 = Category::factory()->hasArticles(3)->create();
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
+
     $this->jsonApi()
         ->filter([
             'categories' => $category->getRouteKey().','.$category2->getRouteKey(),
@@ -193,6 +221,9 @@ it('can filter articles by authors', function () {
 
     Article::factory()->count(2)->create();
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
+
     $this->jsonApi()
         ->filter(['authors' => $author->name])
         ->get(route('api.v1.articles.index'))
@@ -206,6 +237,9 @@ it('can filter articles by multiple authors', function () {
     $author2 = User::factory()->hasArticles(3)->create();
 
     Article::factory()->count(2)->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['articles:index']);
 
     $this->jsonApi()
         ->filter([
