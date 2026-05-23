@@ -9,14 +9,13 @@ it('guest users cannot fetch an article', function () {
 
     $this->jsonApi()
         ->get(route('api.v1.articles.show', $article))
-        ->assertUnauthorized(); // 401
+        ->assertUnauthorized();
 });
 
 it('authenticated users can fetch an article', function () {
     $article = Article::factory()->create();
 
-    $user = User::factory()->create();
-    Passport::actingAs($user, ['articles:show']);
+    Passport::actingAs(User::factory()->create(), ['articles:show']);
 
     $this->jsonApi()->get(route('api.v1.articles.show', $article))
         ->assertOk()
@@ -47,12 +46,11 @@ it('authenticated users can fetch an article', function () {
 it('authenticated users cannot fetch an article without scope', function () {
     $article = Article::factory()->create();
 
-    $user = User::factory()->create();
-    Passport::actingAs($user);
+    Passport::actingAs(User::factory()->create());
 
     $this->jsonApi()
         ->get(route('api.v1.articles.show', $article))
-        ->assertForbidden(); // 403
+        ->assertForbidden();
 });
 
 it('guest users cannot fetch all articles', function () {
@@ -60,26 +58,23 @@ it('guest users cannot fetch all articles', function () {
 
     $this->jsonApi()
         ->get(route('api.v1.articles.index'))
-        ->assertUnauthorized(); // 401
+        ->assertUnauthorized();
 });
 
-it('authenticated users cannot fetch all articles without token scope', function () {
+it('authenticated users cannot fetch all articles without scope', function () {
     Article::factory()->count(3)->create();
 
-    $user = User::factory()->create();
-    Passport::actingAs($user);
+    Passport::actingAs(User::factory()->create());
 
     $this->jsonApi()
         ->get(route('api.v1.articles.index'))
-        ->assertForbidden(); // 403
+        ->assertForbidden();
 });
 
 it('can fetch all articles', function () {
-
     $articles = Article::factory()->count(3)->create();
 
-    $user = User::factory()->create();
-    Passport::actingAs($user, ['articles:index']);
+    Passport::actingAs(User::factory()->create(), ['articles:index']);
 
     $this->jsonApi()->get(route('api.v1.articles.index'))
         ->assertOk()

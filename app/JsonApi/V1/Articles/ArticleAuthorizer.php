@@ -23,20 +23,20 @@ class ArticleAuthorizer implements Authorizer
     public function store(Request $request, string $modelClass): bool|Response
     {
         if (! $request->user()) {
-            return false; //401
+            return false; // 401
         }
 
         $gate = Gate::inspect('create', $modelClass);
         if ($gate->denied()) {
-            return $gate; //403
+            return $gate; // 403
         }
 
         $authorId = $request->input('data.relationships.authors.data.id');
         if ($authorId !== null && (string) $request->user()->getRouteKey() !== (string) $authorId) {
-            return Response::deny(); //403
+            return Response::deny(); // 403
         }
 
-        return true; //Autorizado
+        return true; // Autorizado
     }
 
     /**

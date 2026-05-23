@@ -1,20 +1,19 @@
 <?php
 
-namespace App\JsonApi\V1\Categories;
+namespace App\JsonApi\V1\Authors;
 
 use Illuminate\Auth\Access\Response;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use LaravelJsonApi\Contracts\Auth\Authorizer;
 
-class CategoryAuthorizer implements Authorizer
+class AuthorAuthorizer implements Authorizer
 {
     /**
      * Authorize the index controller action.
      */
     public function index(Request $request, string $modelClass): bool|Response
     {
-        return Gate::inspect('viewAny', $modelClass);
+        return $request->user()?->tokenCan('authors:index') ?? false;
     }
 
     /**
@@ -22,7 +21,7 @@ class CategoryAuthorizer implements Authorizer
      */
     public function store(Request $request, string $modelClass): bool|Response
     {
-        return Gate::inspect('create', $modelClass);
+        return false;
     }
 
     /**
@@ -30,7 +29,7 @@ class CategoryAuthorizer implements Authorizer
      */
     public function show(Request $request, object $model): bool|Response
     {
-        return Gate::inspect('view', $model);
+        return $request->user()?->tokenCan('authors:show') ?? false;
     }
 
     /**
@@ -38,7 +37,7 @@ class CategoryAuthorizer implements Authorizer
      */
     public function update(Request $request, object $model): bool|Response
     {
-        return Gate::inspect('update', $model);
+        return false;
     }
 
     /**
@@ -46,16 +45,15 @@ class CategoryAuthorizer implements Authorizer
      */
     public function destroy(Request $request, object $model): bool|Response
     {
-        return Gate::inspect('delete', $model);
+        return false;
     }
 
     /**
-     * Authorize the show-related controller action
+     * Authorize the show-related controller action.
      */
     public function showRelated(Request $request, object $model, string $fieldName): bool|Response
     {
-
-        return Gate::inspect('show'.ucfirst($fieldName), $model);
+        return $request->user()?->tokenCan('authors:show-'.$fieldName) ?? false;
     }
 
     /**
@@ -63,7 +61,7 @@ class CategoryAuthorizer implements Authorizer
      */
     public function showRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
-        return Gate::inspect('show'.ucfirst($fieldName), $model);
+        return $request->user()?->tokenCan('authors:show-'.$fieldName) ?? false;
     }
 
     /**

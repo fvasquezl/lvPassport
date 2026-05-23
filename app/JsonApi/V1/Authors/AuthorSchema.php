@@ -5,6 +5,7 @@ namespace App\JsonApi\V1\Authors;
 use App\Models\User;
 use LaravelJsonApi\Eloquent\Fields\DateTime;
 use LaravelJsonApi\Eloquent\Fields\ID;
+use LaravelJsonApi\Eloquent\Fields\Relations\HasMany;
 use LaravelJsonApi\Eloquent\Fields\Str;
 use LaravelJsonApi\Eloquent\Schema;
 
@@ -18,9 +19,9 @@ class AuthorSchema extends Schema
             ID::make()->uuid(),
             Str::make('name'),
             Str::make('email'),
-            Str::make('password'),
             DateTime::make('createdAt')->readOnly(),
             DateTime::make('updatedAt')->readOnly(),
+            HasMany::make('articles'),
         ];
     }
 }

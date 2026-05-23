@@ -12,7 +12,7 @@ beforeEach(function () {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
-it('guest users cannot update articles', closure: function () {
+it('guest users cannot update articles', function () {
     $article = Article::factory()->create();
 
     $data = jsonData(
@@ -22,11 +22,17 @@ it('guest users cannot update articles', closure: function () {
     $this->jsonApi()
         ->withData($data)
         ->patch(route('api.v1.articles.update', $article))
-        ->assertUnauthorized(); // 401
+        ->assertUnauthorized();
+
+    $this->assertDatabaseHas('articles', [
+        'id' => $article->id,
+        'title' => $article->title,
+        'slug' => $article->slug,
+        'content' => $article->content,
+    ]);
 });
 
 it('authenticated users can update their articles', function () {
-
     $article = Article::factory()->create();
     $article->title = 'Title changed';
     $article->content = 'Content changed';
@@ -39,7 +45,7 @@ it('authenticated users can update their articles', function () {
     $this->jsonApi()
         ->withData($data)
         ->patch(route('api.v1.articles.update', $article))
-        ->assertOK(); // 200
+        ->assertOk();
 
     $this->assertDatabaseHas('articles', [
         'title' => 'Title changed',
@@ -48,8 +54,34 @@ it('authenticated users can update their articles', function () {
     ]);
 });
 
+it('authenticated users without scope cannot update articles', function () {
+    $article = Article::factory()->create();
+    $originalTitle = $article->title;
+    $originalContent = $article->content;
+    $article->title = 'Title changed';
+    $article->content = 'Content changed';
+
+    $data = jsonData($article);
+
+    $user = userWithPermission('articles:update', $article->user);
+    Passport::actingAs($user);
+
+    $this->jsonApi()
+        ->withData($data)
+        ->patch(route('api.v1.articles.update', $article))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('articles', [
+        'id' => $article->id,
+        'title' => $originalTitle,
+        'content' => $originalContent,
+    ]);
+});
+
 it('authenticated users cannot update their articles without permissions', function () {
     $article = Article::factory()->create();
+    $originalTitle = $article->title;
+    $originalContent = $article->content;
     $article->title = 'Title changed';
     $article->content = 'Content changed';
 
@@ -60,16 +92,19 @@ it('authenticated users cannot update their articles without permissions', funct
     $this->jsonApi()
         ->withData($data)
         ->patch(route('api.v1.articles.update', $article))
-        ->assertForbidden(); // 403
+        ->assertForbidden();
 
-    $this->assertDatabaseMissing('articles', [
-        'title' => 'Title changed',
-        'content' => 'Content changed',
+    $this->assertDatabaseHas('articles', [
+        'id' => $article->id,
+        'title' => $originalTitle,
+        'content' => $originalContent,
     ]);
 });
 
 it('authenticated users cannot update other articles', function () {
     $article = Article::factory()->create();
+    $originalTitle = $article->title;
+    $originalContent = $article->content;
     $article->title = 'Title changed';
     $article->content = 'Content changed';
 
@@ -81,11 +116,12 @@ it('authenticated users cannot update other articles', function () {
     $this->jsonApi()
         ->withData($data)
         ->patch(route('api.v1.articles.update', $article))
-        ->assertForbidden(); // 403
+        ->assertForbidden();
 
-    $this->assertDatabaseMissing('articles', [
-        'title' => 'Title changed',
-        'content' => 'Content changed',
+    $this->assertDatabaseHas('articles', [
+        'id' => $article->id,
+        'title' => $originalTitle,
+        'content' => $originalContent,
     ]);
 });
 
@@ -129,7 +165,7 @@ it('can replace the categories', function () {
             'id' => (string) $category->getRouteKey(),
         ])
         ->patch(route('api.v1.articles.categories.update', $article))
-        ->assertOK(); // 200
+        ->assertOk();
 
     $this->assertDatabaseHas('articles', [
         'id' => $article->id,
@@ -150,7 +186,7 @@ it('can replace the author', function () {
             'id' => $author->getRouteKey(),
         ])
         ->patch(route('api.v1.articles.authors.update', $article))
-        ->assertStatus(200);
+        ->assertOk();
 
     $this->assertDatabaseHas('articles', [
         'user_id' => $author->id,

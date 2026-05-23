@@ -21,7 +21,7 @@ class CategorySchema extends Schema
             Str::make('slug'),
             DateTime::make('createdAt')->readOnly(),
             DateTime::make('updatedAt')->readOnly(),
-            HasMany::make('articles')
+            HasMany::make('articles'),
         ];
     }
 }

@@ -136,18 +136,49 @@ Relaciones disponibles: `authors` (to-one), `categories` (to-one).
 
 ### Categories (`/api/v1/categories`)
 
-CRUD completo. Sin ownership (las categorías no pertenecen a un usuario). Lecturas públicas.
+CRUD completo. **Sin ownership** (las categorías no pertenecen a un usuario), así que las escrituras usan **dos capas** (scope + permission) y las lecturas usan **una capa** (solo scope), siguiendo el patrón del proyecto descrito arriba.
 
-| Acción | Middleware | Autorización |
-|--------|-----------|--------------|
-| `index`, `show` | — | Público — sin autenticación |
-| `store` | `auth:api` | `hasPermissionTo('categories:store')` únicamente — sin `tokenCan` |
-| `update` | `auth:api` | `hasPermissionTo('categories:update')` |
-| `destroy` | `auth:api` | `hasPermissionTo('categories:delete')` |
+| Acción | Middleware | Autorización | Estado |
+|--------|-----------|--------------|--------|
+| `index` | — | `tokenCan('categories:index')` (planeado) | ⚠️ `CategoryAuthorizer::index` TODO → 500 |
+| `show` | — | `tokenCan('categories:show')` | ✅ |
+| `store` | `auth:api` | `tokenCan('categories:store') + hasPermissionTo('categories:store')` | ✅ |
+| `update` | `auth:api` | `tokenCan('categories:update') + hasPermissionTo('categories:update')` (planeado) | ⚠️ `CategoryAuthorizer::update` TODO → 500 |
+| `destroy` | `auth:api` | `tokenCan('categories:delete') + hasPermissionTo('categories:delete')` | ✅ |
 
-Relación disponible: `articles` (to-many, solo lectura).
+Relación disponible: `articles` (to-many, **solo lectura** vía `->readOnly()`).
 
-> **¿Por qué Categories no usa `tokenCan`?** Las categorías son datos del sistema, no contenido de usuario. No tiene sentido discriminar por aplicación cliente para gestionarlas.
+| Endpoint relación | Middleware | Autorización |
+|-------------------|-----------|--------------|
+| `GET /categories/{cat}/articles` | — | `tokenCan('categories:show-articles')` (policy `showArticles`) |
+| `GET /categories/{cat}/relationships/articles` | — | `tokenCan('categories:show-articles')` (mismo ability) |
+
+> Los endpoints de relación comparten el mismo ability — `CategoryAuthorizer::showRelated` y `showRelationship` ambos delegan a `Gate::inspect('show' . ucfirst($fieldName), $model)`.
+
+#### `tests/Feature/Categories/DeleteCategoriesTest.php`
+
+Cobertura completa de la tabla de verdad (2 capas, sin ownership):
+
+| Test | Scope | Permission | Status | Qué prueba |
+| ---- | :---: | :--------: | :----: | ---------- |
+| `guest users cannot delete categories` | — | — | **401** | Sin token no se llega al policy. |
+| `authenticated users without scope cannot delete categories` | ❌ | ✅ | **403** | Permission Spatie no basta sin scope (`assertDatabaseHas` verifica BD). |
+| `authenticated users without permission cannot delete categories` | ✅ | ❌ | **403** | Scope no basta sin permission Spatie (`assertDatabaseHas` verifica BD). |
+| `users with permission can delete categories` | ✅ | ✅ | **204** | Happy path: categoría eliminada (`assertModelMissing`). |
+
+> El `beforeEach` registra el permiso (`Permission::findOrCreate('categories:delete', 'api')`) para que el test "sin permiso" no truene con `PermissionDoesNotExist`.
+
+#### `tests/Feature/Categories/IncludeArticlesTest.php`
+
+Cobertura de las relaciones `articles` (1 capa, solo scope):
+
+| Test | Scope | Status | Qué prueba |
+| ---- | :---: | :----: | ---------- |
+| `can include articles` | `categories:show` | **200** | `?include=articles` en show — devuelve linkage + recursos relacionados. |
+| `can fetch related articles` | `categories:show-articles` | **200** | `GET /categories/{cat}/articles` — recursos relacionados completos. |
+| `can fetch articles relationship` | `categories:show-articles` | **200** | `GET /categories/{cat}/relationships/articles` — solo linkage (type, id). |
+| `guest cannot fetch related articles` | — | **401** | Sin token, el Gate niega y JSON:API responde Unauthenticated (no Forbidden) aunque la ruta no tenga `auth:api`. |
+| `users without scope cannot fetch related articles` | ❌ | **403** | Token sin scope → `tokenCan` retorna false → deny. |
 
 ---
 

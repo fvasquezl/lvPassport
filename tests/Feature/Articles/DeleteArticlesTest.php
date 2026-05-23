@@ -11,18 +11,16 @@ beforeEach(function () {
 });
 
 it('guest users cannot delete articles', function () {
-
     $article = Article::factory()->create();
 
     $this->jsonApi()
         ->delete(route('api.v1.articles.destroy', $article))
-        ->assertUnauthorized(); // 401
+        ->assertUnauthorized();
 
     $this->assertDatabaseHas('articles', ['id' => $article->id]);
 });
 
 it('authenticated users can delete their articles', function () {
-
     $article = Article::factory()->create();
 
     $user = userWithPermission('articles:delete', $article->user);
@@ -30,28 +28,37 @@ it('authenticated users can delete their articles', function () {
 
     $this->jsonApi()
         ->delete(route('api.v1.articles.destroy', $article))
-        ->assertNoContent(); // 204
+        ->assertNoContent();
 
     $this->assertDatabaseEmpty('articles');
+});
 
+it('authenticated users without scope cannot delete articles', function () {
+    $article = Article::factory()->create();
+
+    $user = userWithPermission('articles:delete', $article->user);
+    Passport::actingAs($user);
+
+    $this->jsonApi()
+        ->delete(route('api.v1.articles.destroy', $article))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('articles', ['id' => $article->id]);
 });
 
 it('authenticated users cannot delete their articles without permissions', function () {
-
     $article = Article::factory()->create();
 
     Passport::actingAs($article->user, ['articles:delete']);
 
     $this->jsonApi()
         ->delete(route('api.v1.articles.destroy', $article))
-        ->assertForbidden(); // 403
+        ->assertForbidden();
 
     $this->assertDatabaseHas('articles', ['id' => $article->id]);
-
 });
 
 it('authenticated users cannot delete other articles', function () {
-
     $article = Article::factory()->create();
 
     $user = userWithPermission('articles:delete');
@@ -59,7 +66,7 @@ it('authenticated users cannot delete other articles', function () {
 
     $this->jsonApi()
         ->delete(route('api.v1.articles.destroy', $article))
-        ->assertForbidden(); // 403
+        ->assertForbidden();
 
     $this->assertDatabaseHas('articles', ['id' => $article->id]);
 });

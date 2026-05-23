@@ -4,23 +4,15 @@ use App\Models\Article;
 use App\Models\User;
 use Laravel\Passport\Passport;
 
-/**
- * http://localhost/api/v1/articles?include=categories
- * http://localhost/api/v1/articles/category-slug?include=categories
- */
-
-
 it('can include categories', function () {
-
     $article = Article::factory()->create();
 
-    $user = User::factory()->create();
-    Passport::actingAs($user,['articles:show']);
+    Passport::actingAs(User::factory()->create(), ['articles:show']);
 
     $this->jsonApi()
         ->includePaths('categories')
         ->get(route('api.v1.articles.show', $article))
-        ->assertSee($article->category->name)
+        ->assertJsonFragment(['name' => $article->category->name])
         ->assertJsonFragment([
             'related' => route('api.v1.articles.categories', $article),
         ])
@@ -29,18 +21,40 @@ it('can include categories', function () {
         ]);
 });
 
-it('can fetch related categories', function () {
-
+it('can fetch related category', function () {
     $article = Article::factory()->create();
-    $user = User::factory()->create();
-    Passport::actingAs($user, ['articles:show-categories']);
+
+    Passport::actingAs(User::factory()->create(), ['articles:show-categories']);
 
     $this->jsonApi()
         ->get(route('api.v1.articles.categories', $article))
-        ->assertSee($article->category->name);
+        ->assertJsonFragment(['name' => $article->category->name]);
+});
+
+it('can fetch category relationship', function () {
+    $article = Article::factory()->create();
+
+    Passport::actingAs(User::factory()->create(), ['articles:show-categories']);
 
     $this->jsonApi()
         ->get(route('api.v1.articles.categories.show', $article))
-        ->assertSee($article->category->getRouteKey());
+        ->assertJsonFragment(['id' => (string) $article->category->getRouteKey()]);
+});
 
+it('guest users cannot fetch related category', function () {
+    $article = Article::factory()->create();
+
+    $this->jsonApi()
+        ->get(route('api.v1.articles.categories', $article))
+        ->assertUnauthorized();
+});
+
+it('authenticated users without scope cannot fetch related category', function () {
+    $article = Article::factory()->create();
+
+    Passport::actingAs(User::factory()->create());
+
+    $this->jsonApi()
+        ->get(route('api.v1.articles.categories', $article))
+        ->assertForbidden();
 });

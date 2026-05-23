@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Models\Category;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class CategoryPolicy
 {
@@ -13,7 +12,7 @@ class CategoryPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->tokenCan('categories:index');
     }
 
     /**
@@ -21,7 +20,7 @@ class CategoryPolicy
      */
     public function view(User $user, Category $category): bool
     {
-        return false;
+        return $user->tokenCan('categories:show');
     }
 
     /**
@@ -38,7 +37,8 @@ class CategoryPolicy
      */
     public function update(User $user, Category $category): bool
     {
-        return false;
+        return $user->tokenCan('categories:update')
+            && $user->hasPermissionTo('categories:update');
     }
 
     /**
@@ -46,7 +46,8 @@ class CategoryPolicy
      */
     public function delete(User $user, Category $category): bool
     {
-        return false;
+        return $user->tokenCan('categories:delete')
+            && $user->hasPermissionTo('categories:delete');
     }
 
     /**
@@ -63,5 +64,11 @@ class CategoryPolicy
     public function forceDelete(User $user, Category $category): bool
     {
         return false;
+    }
+
+    public function showArticles(User $user, Category $category): bool
+    {
+
+        return $user->tokenCan('categories:show-articles');
     }
 }

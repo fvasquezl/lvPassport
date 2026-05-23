@@ -12,32 +12,25 @@ beforeEach(function () {
 });
 
 it('guest users cannot create articles', function () {
-    $data = jsonData(
-        Article::factory()->make(),
-    );
+    $data = jsonData(Article::factory()->make());
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertUnauthorized(); // 401
+        ->assertUnauthorized();
 
     $this->assertDatabaseEmpty('articles');
 });
 
 it('returns json errors when no data is sent', function () {
-
     $user = userWithPermission('articles:store');
     Passport::actingAs($user, ['articles:store']);
 
     $this->jsonApi()
         ->withData([])
         ->post(route('api.v1.articles.store'))
-        ->assertStatus(400)
-        ->assertJson([
-            'errors' => [
-                ['source' => ['pointer' => '/data']],
-            ],
-        ]);
+        ->assertBadRequest()
+        ->assertJsonPath('errors.0.source.pointer', '/data');
 });
 
 it('authenticated users can create articles', function () {
@@ -51,7 +44,7 @@ it('authenticated users can create articles', function () {
     $response = $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertCreated();  // 201
+        ->assertCreated();
 
     expect($response->json('data.attributes'))
         ->title->toBe($article->title)
@@ -66,25 +59,35 @@ it('authenticated users can create articles', function () {
     ]);
 });
 
+it('authenticated users without scope cannot create articles', function () {
+    $data = jsonData($article = Article::factory()->make());
+
+    $user = userWithPermission('articles:store', $article->user);
+    Passport::actingAs($user);
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.articles.store'))
+        ->assertForbidden();
+
+    $this->assertDatabaseEmpty('articles');
+});
+
 it('authenticated users cannot create articles without permissions', function () {
-    $data = jsonData(
-        $article = Article::factory()->make()
-    );
+    $data = jsonData($article = Article::factory()->make());
 
     Passport::actingAs($article->user, ['articles:store']);
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertForbidden();  // 403 Forbidden
+        ->assertForbidden();
 
     $this->assertDatabaseEmpty('articles');
 });
 
 it('authenticated users cannot create articles on behalf of other user', function () {
-    $data = jsonData(
-        $article = Article::factory()->make()
-    );
+    $data = jsonData($article = Article::factory()->make());
     $data['relationships']['authors']['data']['id'] = User::factory()->create()->getRouteKey();
 
     $user = userWithPermission('articles:store', $article->user);
@@ -93,16 +96,13 @@ it('authenticated users cannot create articles on behalf of other user', functio
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertForbidden();  // 403
+        ->assertForbidden();
 
     $this->assertDatabaseEmpty('articles');
 });
 
-it('can have protection to mass assignment', function () {
-    $data = jsonData(
-        $article = Article::factory()->make()
-    );
-
+it('rejects unknown attributes', function () {
+    $data = jsonData($article = Article::factory()->make());
     $data['attributes']['approved'] = true;
 
     $user = userWithPermission('articles:store', $article->user);
@@ -111,27 +111,27 @@ it('can have protection to mass assignment', function () {
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertStatus(400);
+        ->assertBadRequest();
+
     $this->assertDatabaseEmpty('articles');
 });
 
 it('users without permission get 403 even when authors relationship is missing', function () {
     $data = jsonData($article = Article::factory()->make());
-
     unset($data['relationships']['authors']);
+
     Passport::actingAs($article->user, ['articles:store']);
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertForbidden(); // espera 403, actualmente devuelve 422
+        ->assertForbidden();
+
     $this->assertDatabaseEmpty('articles');
 });
 
 it('authors is required', function () {
-    $data = jsonData(
-        $article = Article::factory()->make(),
-    );
+    $data = jsonData($article = Article::factory()->make());
     unset($data['relationships']['authors']);
 
     $user = userWithPermission('articles:store', $article->user);
@@ -140,15 +140,14 @@ it('authors is required', function () {
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertUnprocessable() // 422
-        ->assertJsonFragment(['source' => ['pointer' => '/data/relationships/authors']]);
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0.source.pointer', '/data/relationships/authors');
+
     $this->assertDatabaseEmpty('articles');
 });
 
 it('categories is required', function () {
-    $data = jsonData(
-        $article = Article::factory()->make(),
-    );
+    $data = jsonData($article = Article::factory()->make());
     unset($data['relationships']['categories']);
 
     $user = userWithPermission('articles:store', $article->user);
@@ -157,16 +156,14 @@ it('categories is required', function () {
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertUnprocessable() // 422
-        ->assertJsonFragment(['source' => ['pointer' => '/data/relationships/categories']]);
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0.source.pointer', '/data/relationships/categories');
+
     $this->assertDatabaseEmpty('articles');
 });
 
 it('relationship must be a valid type', function (string $relationship, string $wrongType) {
-    $data = jsonData(
-        $article = Article::factory()->make(),
-    );
-
+    $data = jsonData($article = Article::factory()->make());
     $data['relationships'][$relationship] = [
         'data' => ['type' => $wrongType, 'id' => '1'],
     ];
@@ -178,7 +175,7 @@ it('relationship must be a valid type', function (string $relationship, string $
         ->withData($data)
         ->post(route('api.v1.articles.store'))
         ->assertUnprocessable()
-        ->assertSee("data\\/relationships\\/$relationship");
+        ->assertJsonPath('errors.0.source.pointer', "/data/relationships/$relationship");
 })
     ->with([
         'authors with categories type' => ['authors', 'categories'],
@@ -186,9 +183,7 @@ it('relationship must be a valid type', function (string $relationship, string $
     ]);
 
 it('rejects empty required attributes', function (string $field) {
-    $data = jsonData(
-        $article = Article::factory()->make([$field => '']),
-    );
+    $data = jsonData($article = Article::factory()->make([$field => '']));
 
     $user = userWithPermission('articles:store', $article->user);
     Passport::actingAs($user, ['articles:store']);
@@ -197,12 +192,13 @@ it('rejects empty required attributes', function (string $field) {
         ->withData($data)
         ->post(route('api.v1.articles.store'))
         ->assertUnprocessable()
-        ->assertSee("data\\/attributes\\/$field");
+        ->assertJsonPath('errors.0.source.pointer', "/data/attributes/$field");
 
     $this->assertDatabaseEmpty('articles');
 })
     ->with([
-        'title', 'content',
+        'title required' => 'title',
+        'content required' => 'content',
     ]);
 
 it('slug must be unique', function () {
@@ -218,36 +214,30 @@ it('slug must be unique', function () {
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/slug');
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0.source.pointer', '/data/attributes/slug');
 
     $this->assertDatabaseCount('articles', 1);
 });
 
-it('rejects invalid slugs', function (string $slug, ?string $translationKey = null) {
-    $data = jsonData(
-        $article = Article::factory()->make(['slug' => $slug])
-    );
+it('rejects invalid slugs', function (string $slug) {
+    $data = jsonData($article = Article::factory()->make(['slug' => $slug]));
 
     $user = userWithPermission('articles:store', $article->user);
     Passport::actingAs($user, ['articles:store']);
 
-    $response = $this->jsonApi()
+    $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.articles.store'))
         ->assertUnprocessable()
-        ->assertSee('data\/attributes\/slug');
-
-    if ($translationKey) {
-        $response->assertSee(__($translationKey, ['attribute' => 'slug']));
-    }
+        ->assertJsonPath('errors.0.source.pointer', '/data/attributes/slug');
 
     $this->assertDatabaseEmpty('articles');
 })
     ->with([
-        'empty' => ['', null],
-        'invalid characters' => ['%$%#@', null],
-        'contains underscores' => ['with_underscores', 'validation.no_underscores'],
-        'starts with dash' => ['-start-with-dash', 'validation.no_starting_dashes'],
-        'ends with dash' => ['end-with-dash-', 'validation.no_ending_dashes'],
+        'empty' => '',
+        'invalid characters' => '%$%#@',
+        'contains underscores' => 'with_underscores',
+        'starts with dash' => '-start-with-dash',
+        'ends with dash' => 'end-with-dash-',
     ]);

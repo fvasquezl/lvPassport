@@ -35,21 +35,21 @@ JsonApiRoute::server('v1')
                     ]);
             });
 
-        //        // Authors — solo lectura
-        //        $server->resource('authors', JsonApiController::class)
-        //            ->relationships(function ($server) {
-        //                $server->hasMany('articles')->except('update', 'attach', 'detach');
-        //            })->only('index', 'show');
-        //
-                $server->resource('categories', JsonApiController::class)
-                    ->middleware([
-                        '*' => [],
-                        'store' => 'auth:api',
-                        'update' => 'auth:api',
-                        'destroy' => 'auth:api',
-                    ])
-                    ->relationships(function ($server) {
-                        $server->hasMany('articles')->readOnly();
-                    });
+        // Authors — solo lectura
+        $server->resource('authors', JsonApiController::class)
+            ->relationships(function ($server) {
+                $server->hasMany('articles')->readOnly();
+            })->only('index', 'show');
+
+        $server->resource('categories', JsonApiController::class)
+            ->middleware([
+                '*' => [],
+                'store' => 'auth:api',
+                'update' => 'auth:api',
+                'destroy' => 'auth:api',
+            ])
+            ->relationships(function ($server) {
+                $server->hasMany('articles')->readOnly();
+            });
 
     });

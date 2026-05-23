@@ -1,36 +1,65 @@
 <?php
 
 use App\Models\Category;
+use App\Models\User;
 use Laravel\Passport\Passport;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
-    $this->user = userWithPermission('categories:store');
+    Permission::findOrCreate('categories:store', 'api');
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
 it('guest users cannot create categories', function () {
-
     $data = jsonData(Category::factory()->make());
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.categories.store'))
-        ->assertUnauthorized(); // 401
+        ->assertUnauthorized();
 
-    $this->assertDatabaseCount('categories', 0);
+    $this->assertDatabaseEmpty('categories');
 });
 
-it('authenticated users can create categories', function () {
+it('authenticated users without scope cannot create categories', function () {
+    $data = jsonData(Category::factory()->make());
 
-    $data = jsonData(
-        $category = Category::factory()->make()
-    );
-
-    Passport::actingAs($this->user, ['categories:store']);
+    Passport::actingAs(userWithPermission('categories:store'));
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.categories.store'))
-        ->assertCreated();  // 201
+        ->assertForbidden();
+
+    $this->assertDatabaseEmpty('categories');
+});
+
+it('authenticated users without permission cannot create categories', function () {
+    $data = jsonData(Category::factory()->make());
+
+    Passport::actingAs(User::factory()->create(), ['categories:store']);
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.categories.store'))
+        ->assertForbidden();
+
+    $this->assertDatabaseEmpty('categories');
+});
+
+it('users with permission can create categories', function () {
+    $data = jsonData(
+        $category = Category::factory()->make()
+    );
+
+    $user = userWithPermission('categories:store');
+    Passport::actingAs($user, ['categories:store']);
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v1.categories.store'))
+        ->assertCreated();
 
     $this->assertDatabaseHas('categories', [
         $category->getRouteKeyName() => $category->getRouteKey(),
@@ -38,137 +67,69 @@ it('authenticated users can create categories', function () {
 });
 
 it('category name is required', function () {
+    $data = jsonData(Category::factory()->make(['name' => '']));
 
-    $data = jsonData(
-        $category = Category::factory()->make(['name' => ''])
-    );
-
-    Passport::actingAs($this->user,['categories:store']);
+    $user = userWithPermission('categories:store');
+    Passport::actingAs($user, ['categories:store']);
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.categories.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/name');
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0.source.pointer', '/data/attributes/name');
 
-    $this->assertDatabaseMissing('categories', [
-        $category->getRouteKeyName() => $category->getRouteKey(),
-    ]);
+    $this->assertDatabaseEmpty('categories');
 });
 
 it('slug is required', function () {
+    $data = jsonData(Category::factory()->make(['slug' => '']));
 
-    $data = jsonData(
-        $category = Category::factory()->make(['slug' => ''])
-    );
-
-    Passport::actingAs($this->user,['categories:store']);
+    $user = userWithPermission('categories:store');
+    Passport::actingAs($user, ['categories:store']);
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.categories.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/slug');
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0.source.pointer', '/data/attributes/slug');
 
-    $this->assertDatabaseMissing('categories', [
-        $category->getRouteKeyName() => $category->getRouteKey(),
-    ]);
+    $this->assertDatabaseEmpty('categories');
 });
 
 it('slug must be unique', function () {
-
     Category::factory()->create(['slug' => 'same-slug']);
 
-    $data = jsonData(
-        $category = Category::factory()->make(['slug' => 'same-slug'])
-    );
+    $data = jsonData(Category::factory()->make(['slug' => 'same-slug']));
 
-    Passport::actingAs($this->user,['categories:store']);
+    $user = userWithPermission('categories:store');
+    Passport::actingAs($user, ['categories:store']);
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.categories.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/slug');
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0.source.pointer', '/data/attributes/slug');
 
     $this->assertDatabaseCount('categories', 1);
 });
 
-it('slug must only contain letters numbers and dashes', function () {
+it('rejects invalid slug formats', function (string $slug) {
+    $data = jsonData(Category::factory()->make(['slug' => $slug]));
 
-    $data = jsonData(
-        $category = Category::factory()->make(['slug' => '%$%#@'])
-    );
-
-    Passport::actingAs($this->user,['categories:store']);
+    $user = userWithPermission('categories:store');
+    Passport::actingAs($user, ['categories:store']);
 
     $this->jsonApi()
         ->withData($data)
         ->post(route('api.v1.categories.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/slug');
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.0.source.pointer', '/data/attributes/slug');
 
-    $this->assertDatabaseMissing('categories', [
-        $category->getRouteKeyName() => $category->getRouteKey(),
+    $this->assertDatabaseEmpty('categories');
+})
+    ->with([
+        'special chars' => '%$%#@',
+        'underscores' => 'with_underscores',
+        'starts with dash' => '-start-with-dash',
+        'ends with dash' => 'end-with-dash-',
     ]);
-
-});
-
-it('slug must not contain underscores', function () {
-
-    $data = jsonData(
-        $category = Category::factory()->make(['slug' => 'with_underscores'])
-    );
-
-    Passport::actingAs($this->user,['categories:store']);
-
-    $this->jsonApi()
-        ->withData($data)
-        ->post(route('api.v1.categories.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/slug');
-
-    $this->assertDatabaseMissing('categories', [
-        $category->getRouteKeyName() => $category->getRouteKey(),
-    ]);
-
-});
-
-it('slug must not start with dashes', function () {
-
-    $data = jsonData(
-        $category = Category::factory()->make(['slug' => '-start-with-dash'])
-    );
-
-    Passport::actingAs($this->user,['categories:store']);
-
-    $this->jsonApi()
-        ->withData($data)
-        ->post(route('api.v1.categories.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/slug');
-
-    $this->assertDatabaseMissing('categories', [
-        $category->getRouteKeyName() => $category->getRouteKey(),
-    ]);
-});
-
-it('slug must not end with dashes', function () {
-
-    $data = jsonData(
-        $category = Category::factory()->make(['slug' => 'end-with-dash-'])
-    );
-
-    Passport::actingAs($this->user,['categories:store']);
-
-    $this->jsonApi()
-        ->withData($data)
-        ->post(route('api.v1.categories.store'))
-        ->assertUnprocessable() // 422
-        ->assertSee('data\/attributes\/slug');
-
-    $this->assertDatabaseMissing('categories', [
-        $category->getRouteKeyName() => $category->getRouteKey(),
-    ]);
-
-});

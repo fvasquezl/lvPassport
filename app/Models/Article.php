@@ -49,6 +49,7 @@ class Article extends Model
     {
         return $this->belongsTo(User::class);
     }
+
     public function scopeTitle(Builder $query, $value): void
     {
         $query->where('title', 'LIKE', "%$value%");
@@ -77,13 +78,13 @@ class Article extends Model
         });
     }
 
-
     public function scopeCategories(Builder $query, $values): void
     {
         $query->whereHas('category', function ($q) use ($values) {
             $q->whereIn('slug', explode(',', $values));
         });
     }
+
     public function scopeAuthors(Builder $query, $values): void
     {
         $query->whereHas('user', function ($q) use ($values) {

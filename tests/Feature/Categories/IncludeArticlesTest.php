@@ -1,19 +1,44 @@
 <?php
 
 use App\Models\Category;
+use App\Models\User;
+use Laravel\Passport\Passport;
 
 /**
  * http://localhost/api/v1/categories?include=articles
  * http://localhost/api/v1/categories/category-slug?include=articles
  */
-it('can include articles', function () {
+it('guest users cannot fetch related articles', function () {
 
     $category = Category::factory()->hasArticles()->create();
 
     $this->jsonApi()
+        ->get(route('api.v1.categories.articles', $category))
+        ->assertUnauthorized(); // 401
+});
+
+it('authenticated users without scope cannot fetch related articles', function () {
+
+    $category = Category::factory()->hasArticles()->create();
+
+    Passport::actingAs(User::factory()->create()); // sin scope
+
+    $this->jsonApi()
+        ->get(route('api.v1.categories.articles', $category))
+        ->assertForbidden(); // 403
+});
+
+it('can include articles', function () {
+
+    $category = Category::factory()->hasArticles()->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['categories:show']);
+
+    $this->jsonApi()
         ->includePaths('articles')
         ->get(route('api.v1.categories.show', $category))
-        ->assertSee($category->articles[0]->title)
+        ->assertJsonFragment(['title' => $category->articles[0]->title])
         ->assertJsonFragment([
             'related' => route('api.v1.categories.articles', $category),
         ])
@@ -26,12 +51,22 @@ it('can fetch related articles', function () {
 
     $category = Category::factory()->hasArticles()->create();
 
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['categories:show-articles']);
+
     $this->jsonApi()
         ->get(route('api.v1.categories.articles', $category))
-        ->assertSee($category->articles[0]->title);
+        ->assertJsonFragment(['title' => $category->articles[0]->title]);
+});
+
+it('can fetch articles relationship', function () {
+
+    $category = Category::factory()->hasArticles()->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['categories:show-articles']);
 
     $this->jsonApi()
         ->get(route('api.v1.categories.articles.show', $category))
-        ->assertSee($category->articles[0]->getRouteKey());
-
+        ->assertJsonFragment(['id' => (string) $category->articles[0]->getRouteKey()]);
 });

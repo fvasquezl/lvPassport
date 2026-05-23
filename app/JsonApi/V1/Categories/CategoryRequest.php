@@ -7,14 +7,10 @@ use App\Rules\Slug;
 use Illuminate\Validation\Rule;
 use LaravelJsonApi\Laravel\Http\Requests\ResourceRequest;
 
-
 class CategoryRequest extends ResourceRequest
 {
-
     /**
      * Get the validation rules for the resource.
-     *
-     * @return array
      */
     public function rules(): array
     {
@@ -24,10 +20,10 @@ class CategoryRequest extends ResourceRequest
             new Slug,
             Rule::unique(Category::class, 'slug')->ignore($this->model()),
         ];
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'slug' => $slug,
         ];
     }
-
 }

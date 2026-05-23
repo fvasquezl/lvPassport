@@ -1,9 +1,22 @@
 <?php
 
 use App\Models\Category;
+use App\Models\User;
+use Laravel\Passport\Passport;
 
-it(description: 'can fetch a single category', closure: function () {
+it('guest users cannot fetch a single category', function () {
     $category = Category::factory()->create();
+
+    $this->jsonApi()
+        ->get(route('api.v1.categories.show', $category))
+        ->assertUnauthorized(); // 401
+});
+
+it('authenticated users can fetch a single category', function () {
+    $category = Category::factory()->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['categories:show']);
 
     $this->jsonApi()->get(route('api.v1.categories.show', $category))
         ->assertOk()
@@ -14,6 +27,8 @@ it(description: 'can fetch a single category', closure: function () {
                 'attributes' => [
                     'name' => $category->name,
                     'slug' => $category->slug,
+                    'createdAt' => $category->created_at->toJSON(),
+                    'updatedAt' => $category->updated_at->toJSON(),
                 ],
                 'links' => [
                     'self' => route('api.v1.categories.show', $category),
@@ -22,14 +37,47 @@ it(description: 'can fetch a single category', closure: function () {
         ]);
 });
 
-it(description: 'can fetch all categories', closure: function () {
+it('authenticated users cannot fetch a single category without scope', function () {
+    $category = Category::factory()->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user);
+
+    $this->jsonApi()
+        ->get(route('api.v1.categories.show', $category))
+        ->assertForbidden(); // 403
+});
+
+it('guest users cannot fetch all categories', function () {
+    Category::factory()->count(3)->create();
+
+    $this->jsonApi()
+        ->get(route('api.v1.categories.index'))
+        ->assertUnauthorized(); // 401
+});
+
+it('authenticated users cannot fetch all categories without scope', function () {
+    Category::factory()->count(3)->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user);
+
+    $this->jsonApi()
+        ->get(route('api.v1.categories.index'))
+        ->assertForbidden(); // 403
+});
+
+it('can fetch all categories', function () {
     $categories = Category::factory()->count(3)->create();
+
+    $user = User::factory()->create();
+    Passport::actingAs($user, ['categories:index']);
 
     $this->jsonApi()->get(route('api.v1.categories.index'))
         ->assertOk()
         ->assertJsonCount(3, 'data')
         ->assertJson([
-            'data' => $categories->map(fn ($category) => [
+            'data' => $categories->map(fn (Category $category) => [
                 'type' => 'categories',
                 'id' => (string) $category->getRouteKey(),
                 'attributes' => [

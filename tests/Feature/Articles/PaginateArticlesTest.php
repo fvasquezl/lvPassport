@@ -4,16 +4,34 @@ use App\Models\Article;
 use App\Models\User;
 use Laravel\Passport\Passport;
 
-test('can fetch paginate articles', function () {
-
+it('guest users cannot paginate articles', function () {
     Article::factory()->count(10)->create();
 
-    $user = User::factory()->create();
-    Passport::actingAs($user,['articles:index']);
+    $this->jsonApi()
+        ->page(['size' => 2, 'number' => 1])
+        ->get(route('api.v1.articles.index'))
+        ->assertUnauthorized();
+});
 
-    $url = route('api.v1.articles.index', ['page[size]' => 2, 'page[number]' => 3]);
+it('authenticated users without scope cannot paginate articles', function () {
+    Article::factory()->count(10)->create();
 
-    $response = $this->jsonApi()->get($url);
+    Passport::actingAs(User::factory()->create());
+
+    $this->jsonApi()
+        ->page(['size' => 2, 'number' => 1])
+        ->get(route('api.v1.articles.index'))
+        ->assertForbidden();
+});
+
+it('can fetch paginate articles', function () {
+    Article::factory()->count(10)->create();
+
+    Passport::actingAs(User::factory()->create(), ['articles:index']);
+
+    $response = $this->jsonApi()
+        ->page(['size' => 2, 'number' => 3])
+        ->get(route('api.v1.articles.index'));
 
     $response->assertJsonStructure([
         'links' => ['first', 'last', 'prev', 'next'],
