@@ -7,6 +7,88 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Autenticación: OAuth2 con Laravel Passport
+
+El API usa **OAuth 2.0 estándar** vía Laravel Passport. No hay endpoints custom de `login` o `register` — la emisión de tokens es responsabilidad de los endpoints OAuth nativos de Passport (`/oauth/...`), y los usuarios se crean por seeder o admin (no por API pública).
+
+### Grants habilitados
+
+Tres clients OAuth, cada uno para un caso de uso distinto:
+
+| Grant | Para qué | Cómo se crea el client |
+|---|---|---|
+| **Authorization Code + PKCE** | SPA / mobile de primera parte | `php artisan passport:client --public --name="SPA Client" --redirect_uri="http://localhost/auth/callback"` |
+| **Client Credentials** | Servicio-a-servicio (cron, worker, microservicio) | `php artisan passport:client --client --name="Backend Service"` |
+| **Personal Access Tokens** | Tokens emitidos desde código (`$user->createToken()`) — seeders, scripts admin | `php artisan passport:client --personal --name="Personal Access Client"` |
+
+El Personal Access Client es **requisito** para que `Passport::actingAs()` en tests y `$user->createToken()` en código funcionen — Passport lo busca internamente. En tests, `tests/Pest.php` lo recrea en cada test vía `pest()->beforeEach(...)->in('Feature/Auth')` porque `RefreshDatabase` limpia la tabla `oauth_clients`.
+
+### Endpoints OAuth (nativos de Passport)
+
+| Método | Path | Para qué |
+|---|---|---|
+| `POST` | `/oauth/token` | Intercambio del grant por access token + refresh token (Auth Code, Client Credentials) |
+| `GET` | `/oauth/authorize` | Pantalla de consent (Auth Code) |
+| `POST` | `/oauth/authorize` | Aprobación del code |
+| `DELETE` | `/oauth/authorize` | Negación del code |
+| `POST` | `/oauth/token/refresh` | Refresh token → access token nuevo |
+| `POST` | `/oauth/device/code` | Device authorization grant — solicitud de código |
+
+### Endpoints propios del API
+
+| Método | Path | Controller | Middleware |
+|---|---|---|---|
+| `GET` | `/api/v1/user` | `App\Http\Controllers\Api\UserController` | `auth:api` |
+| `POST` | `/api/v1/logout` | `App\Http\Controllers\Api\LogoutController` | `auth:api` |
+
+`logout` revoca el token actual (`$request->user()->token()->revoke()`) y responde **204**. Passport no elimina los tokens: los marca con `revoked = true` en `oauth_access_tokens`.
+
+### Comando `generate:permissions`
+
+`app/Console/Commands/GeneratePermissions.php` itera los recursos JSON:API registrados (`JsonApi::server('v1')->schemas()->types()`) y crea las permissions Spatie correspondientes con guard `api`:
+
+```bash
+php artisan generate:permissions
+```
+
+Por cada tipo de recurso genera 5 permissions con `GeneratePermissions::ABILITIES`:
+
+```
+articles:index   articles:show   articles:store   articles:update   articles:delete
+authors:index    authors:show    authors:store    authors:update    authors:delete
+categories:index ...
+```
+
+El comando es **idempotente** (`Permission::findOrCreate`) y limpia el cache de Spatie al terminar. Las permissions relacionales (`articles:show-authors`, etc.) no las genera este comando — siguen declaradas manualmente en `app/Providers/AppServiceProvider.php::boot` junto con los scopes de Passport.
+
+### Cómo lo prueban los tests
+
+`tests/Feature/Auth/` cubre los tres grants y los endpoints propios:
+
+| Archivo | Tests | Qué prueba |
+|---|---|---|
+| `AuthenticatedUserTest.php` | 2 | `Passport::actingAs` + `/api/v1/user` (happy + guest 401) |
+| `LogoutTest.php` | 2 | `$user->createToken()` + bearer + `/api/v1/logout` (revoca, asserta `revoked = true`) |
+| `Oauth/AuthorizationCodeGrantTest.php` | 1 | Flujo PKCE completo: GET `/oauth/authorize`, approve, exchange en `/oauth/token`. Usa `Passport::authorizationView(fn ($p) => response()->json($p))` para bypasear la UI de consent. |
+| `Oauth/ClientCredentialsGrantTest.php` | 2 | `POST /oauth/token` con `grant_type=client_credentials` (happy + secret inválido) |
+| `Oauth/PersonalAccessTokenTest.php` | 1 | Token emitido vía `createToken()` accede a endpoint protegido |
+| `Commands/GeneratePermissionsTest.php` | 2 | `generate:permissions` genera el cross product types × abilities, y es idempotente |
+
+Patrón de uso en tests de recursos (Articles, Authors, Categories):
+
+```php
+Passport::actingAs($user, ['articles:update']);   // scope simulado, no requiere token real
+```
+
+Patrón para emitir un token real (logout, tests de PAT):
+
+```php
+$result = $user->createToken('test', ['articles:show']);
+$this->withHeader('Authorization', 'Bearer '.$result->accessToken)->...
+```
+
+---
+
 ## Autorización: Scopes de Passport y Permissions de Spatie
 
 Este proyecto combina **dos capas de autorización** en cada acción protegida (`store`, `update`, `update-relationship`, …), más una tercera regla de negocio cuando aplica (**ownership**):

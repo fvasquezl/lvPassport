@@ -4,9 +4,15 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Passport\ClientRepository;
 use LaravelJsonApi\Testing\MakesJsonApiRequests;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
+
+pest()->beforeEach(function () {
+    app(ClientRepository::class)
+        ->createPersonalAccessGrantClient('Test PAT', 'users');
+})->in('Feature/Auth');
 
 /*
 |--------------------------------------------------------------------------
