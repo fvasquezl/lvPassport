@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Passport\ClientRepository;
 use LaravelJsonApi\Testing\MakesJsonApiRequests;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 pest()->beforeEach(function () {
@@ -137,6 +138,21 @@ function userWithPermission(string $permission, ?User $user = null): User
     $user ??= User::factory()->create();
 
     $user->givePermissionTo(Permission::findOrCreate($permission, 'api'));
+
+    return $user;
+}
+
+function userWithRole(string $role, array $permissions, ?User $user = null): User
+{
+    $user ??= User::factory()->create();
+
+    $roleModel = Role::findOrCreate($role, 'api');
+
+    foreach ($permissions as $permission) {
+        $roleModel->givePermissionTo(Permission::findOrCreate($permission, 'api'));
+    }
+
+    $user->assignRole($roleModel);
 
     return $user;
 }
