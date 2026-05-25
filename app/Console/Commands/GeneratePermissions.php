@@ -16,7 +16,7 @@ class GeneratePermissions extends Command
     /** @var array<int, string> */
     public const array ABILITIES = ['index', 'show', 'store', 'update', 'delete'];
 
-    public function handle()
+    public function handle(): int
     {
         $types = JsonApi::server('v1')->schemas()->types();
 
