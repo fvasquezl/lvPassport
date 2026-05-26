@@ -41,20 +41,20 @@ it('can fetch author relationship', function () {
         ->assertJsonFragment(['id' => $article->user->getRouteKey()]);
 });
 
-it('guest users cannot fetch related author', function () {
+it('guest users can fetch related author', function () {
     $article = Article::factory()->create();
 
     $this->jsonApi()
         ->get(route('api.v1.articles.authors', $article))
-        ->assertUnauthorized();
+        ->assertOk();
 });
 
-it('authenticated users without scope cannot fetch related author', function () {
+it('authenticated users without scope can fetch related author', function () {
     $article = Article::factory()->create();
 
     Passport::actingAs(User::factory()->create());
 
     $this->jsonApi()
         ->get(route('api.v1.articles.authors', $article))
-        ->assertForbidden();
+        ->assertOk();
 });

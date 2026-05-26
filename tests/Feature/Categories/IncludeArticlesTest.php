@@ -8,24 +8,24 @@ use Laravel\Passport\Passport;
  * http://localhost/api/v1/categories?include=articles
  * http://localhost/api/v1/categories/category-slug?include=articles
  */
-it('guest users cannot fetch related articles', function () {
+it('guest users can fetch related articles', function () {
 
     $category = Category::factory()->hasArticles()->create();
 
     $this->jsonApi()
         ->get(route('api.v1.categories.articles', $category))
-        ->assertUnauthorized(); // 401
+        ->assertOk();
 });
 
-it('authenticated users without scope cannot fetch related articles', function () {
+it('authenticated users without scope can fetch related articles', function () {
 
     $category = Category::factory()->hasArticles()->create();
 
-    Passport::actingAs(User::factory()->create()); // sin scope
+    Passport::actingAs(User::factory()->create());
 
     $this->jsonApi()
         ->get(route('api.v1.categories.articles', $category))
-        ->assertForbidden(); // 403
+        ->assertOk();
 });
 
 it('can include articles', function () {

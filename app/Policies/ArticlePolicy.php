@@ -10,17 +10,17 @@ class ArticlePolicy
     /**
      * Determine whether the user can view any models.
      */
-    public function viewAny(User $user): bool
+    public function viewAny(?User $user): bool
     {
-        return $user->tokenCan('articles:index');
+        return true;
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Article $article): bool
+    public function view(?User $user, Article $article): bool
     {
-        return $user->tokenCan('articles:show');
+        return true;
     }
 
     /**
@@ -84,13 +84,13 @@ class ArticlePolicy
             && $article->user->is($user);
     }
 
-    public function showAuthors(User $user, Article $article): bool
+    public function showAuthors(?User $user, Article $article): bool
     {
-        return $user->tokenCan('articles:show-authors');
+        return true;
     }
 
-    public function showCategories(User $user, Article $article): bool
+    public function showCategories(?User $user, Article $article): bool
     {
-        return $user->tokenCan('articles:show-categories');
+        return true;
     }
 }

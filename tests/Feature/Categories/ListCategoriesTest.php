@@ -4,12 +4,12 @@ use App\Models\Category;
 use App\Models\User;
 use Laravel\Passport\Passport;
 
-it('guest users cannot fetch a single category', function () {
+it('guest users can fetch a single category', function () {
     $category = Category::factory()->create();
 
     $this->jsonApi()
         ->get(route('api.v1.categories.show', $category))
-        ->assertUnauthorized(); // 401
+        ->assertOk();
 });
 
 it('authenticated users can fetch a single category', function () {
@@ -37,7 +37,7 @@ it('authenticated users can fetch a single category', function () {
         ]);
 });
 
-it('authenticated users cannot fetch a single category without scope', function () {
+it('authenticated users can fetch a single category without scope', function () {
     $category = Category::factory()->create();
 
     $user = User::factory()->create();
@@ -45,18 +45,18 @@ it('authenticated users cannot fetch a single category without scope', function 
 
     $this->jsonApi()
         ->get(route('api.v1.categories.show', $category))
-        ->assertForbidden(); // 403
+        ->assertOk();
 });
 
-it('guest users cannot fetch all categories', function () {
+it('guest users can fetch all categories', function () {
     Category::factory()->count(3)->create();
 
     $this->jsonApi()
         ->get(route('api.v1.categories.index'))
-        ->assertUnauthorized(); // 401
+        ->assertOk();
 });
 
-it('authenticated users cannot fetch all categories without scope', function () {
+it('authenticated users can fetch all categories without scope', function () {
     Category::factory()->count(3)->create();
 
     $user = User::factory()->create();
@@ -64,7 +64,7 @@ it('authenticated users cannot fetch all categories without scope', function () 
 
     $this->jsonApi()
         ->get(route('api.v1.categories.index'))
-        ->assertForbidden(); // 403
+        ->assertOk();
 });
 
 it('can fetch all categories', function () {

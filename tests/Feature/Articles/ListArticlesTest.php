@@ -4,12 +4,12 @@ use App\Models\Article;
 use App\Models\User;
 use Laravel\Passport\Passport;
 
-it('guest users cannot fetch an article', function () {
+it('guest users can fetch an article', function () {
     $article = Article::factory()->create();
 
     $this->jsonApi()
         ->get(route('api.v1.articles.show', $article))
-        ->assertUnauthorized();
+        ->assertOk();
 });
 
 it('authenticated users can fetch an article', function () {
@@ -43,32 +43,32 @@ it('authenticated users can fetch an article', function () {
         ]);
 });
 
-it('authenticated users cannot fetch an article without scope', function () {
+it('authenticated users can fetch an article without scope', function () {
     $article = Article::factory()->create();
 
     Passport::actingAs(User::factory()->create());
 
     $this->jsonApi()
         ->get(route('api.v1.articles.show', $article))
-        ->assertForbidden();
+        ->assertOk();
 });
 
-it('guest users cannot fetch all articles', function () {
+it('guest users can fetch all articles', function () {
     Article::factory()->count(3)->create();
 
     $this->jsonApi()
         ->get(route('api.v1.articles.index'))
-        ->assertUnauthorized();
+        ->assertOk();
 });
 
-it('authenticated users cannot fetch all articles without scope', function () {
+it('authenticated users can fetch all articles without scope', function () {
     Article::factory()->count(3)->create();
 
     Passport::actingAs(User::factory()->create());
 
     $this->jsonApi()
         ->get(route('api.v1.articles.index'))
-        ->assertForbidden();
+        ->assertOk();
 });
 
 it('can fetch all articles', function () {

@@ -5,16 +5,16 @@ use App\Models\Category;
 use App\Models\User;
 use Laravel\Passport\Passport;
 
-it('guest users cannot filter articles', function () {
+it('guest users can filter articles', function () {
     Article::factory()->create();
 
     $this->jsonApi()
         ->filter(['title' => 'whatever'])
         ->get(route('api.v1.articles.index'))
-        ->assertUnauthorized();
+        ->assertOk();
 });
 
-it('authenticated users without scope cannot filter articles', function () {
+it('authenticated users without scope can filter articles', function () {
     Article::factory()->create();
 
     Passport::actingAs(User::factory()->create());
@@ -22,7 +22,7 @@ it('authenticated users without scope cannot filter articles', function () {
     $this->jsonApi()
         ->filter(['title' => 'whatever'])
         ->get(route('api.v1.articles.index'))
-        ->assertForbidden();
+        ->assertOk();
 });
 
 it('can filter articles by title', function () {

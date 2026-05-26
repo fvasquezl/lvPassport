@@ -1,11 +1,16 @@
 <?php
 
+use App\Http\Controllers\Api\LoginController;
 use App\Http\Controllers\Api\LogoutController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 use LaravelJsonApi\Laravel\Facades\JsonApiRoute;
 use LaravelJsonApi\Laravel\Http\Controllers\JsonApiController;
 use LaravelJsonApi\Laravel\Routing\ResourceRegistrar;
+
+Route::prefix('v1')->name('v1.')->group(function () {
+    Route::post('login', LoginController::class)->name('login');
+});
 
 Route::prefix('v1')->name('v1.')->middleware('auth:api')->group(function () {
     Route::get('user', UserController::class)->name('user');

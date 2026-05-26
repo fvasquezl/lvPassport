@@ -41,20 +41,20 @@ it('can fetch category relationship', function () {
         ->assertJsonFragment(['id' => (string) $article->category->getRouteKey()]);
 });
 
-it('guest users cannot fetch related category', function () {
+it('guest users can fetch related category', function () {
     $article = Article::factory()->create();
 
     $this->jsonApi()
         ->get(route('api.v1.articles.categories', $article))
-        ->assertUnauthorized();
+        ->assertOk();
 });
 
-it('authenticated users without scope cannot fetch related category', function () {
+it('authenticated users without scope can fetch related category', function () {
     $article = Article::factory()->create();
 
     Passport::actingAs(User::factory()->create());
 
     $this->jsonApi()
         ->get(route('api.v1.articles.categories', $article))
-        ->assertForbidden();
+        ->assertOk();
 });

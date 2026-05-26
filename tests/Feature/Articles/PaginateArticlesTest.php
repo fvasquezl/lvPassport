@@ -4,16 +4,16 @@ use App\Models\Article;
 use App\Models\User;
 use Laravel\Passport\Passport;
 
-it('guest users cannot paginate articles', function () {
+it('guest users can paginate articles', function () {
     Article::factory()->count(10)->create();
 
     $this->jsonApi()
         ->page(['size' => 2, 'number' => 1])
         ->get(route('api.v1.articles.index'))
-        ->assertUnauthorized();
+        ->assertOk();
 });
 
-it('authenticated users without scope cannot paginate articles', function () {
+it('authenticated users without scope can paginate articles', function () {
     Article::factory()->count(10)->create();
 
     Passport::actingAs(User::factory()->create());
@@ -21,7 +21,7 @@ it('authenticated users without scope cannot paginate articles', function () {
     $this->jsonApi()
         ->page(['size' => 2, 'number' => 1])
         ->get(route('api.v1.articles.index'))
-        ->assertForbidden();
+        ->assertOk();
 });
 
 it('can fetch paginate articles', function () {
