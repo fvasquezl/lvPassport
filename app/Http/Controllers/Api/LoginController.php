@@ -21,7 +21,8 @@ class LoginController extends Controller
         }
 
         $user = Auth::user();
-        $token = $user->createToken('api-token')->accessToken;
+        $scopes = $user->getAllPermissions()->pluck('name')->all();
+        $token = $user->createToken('api-token', $scopes)->accessToken;
 
         return response()->json([
             'token' => $token,

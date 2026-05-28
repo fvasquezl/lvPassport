@@ -3,6 +3,7 @@
 namespace App\JsonApi\V1\Authors;
 
 use LaravelJsonApi\Laravel\Http\Requests\ResourceRequest;
+use LaravelJsonApi\Validation\Rule as JsonApiRule;
 
 class AuthorRequest extends ResourceRequest
 {
@@ -12,7 +13,7 @@ class AuthorRequest extends ResourceRequest
     public function rules(): array
     {
         return [
-            // @TODO
+            'roles' => [JsonApiRule::toMany()],
         ];
     }
 }

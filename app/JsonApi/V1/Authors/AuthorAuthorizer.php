@@ -2,9 +2,11 @@
 
 namespace App\JsonApi\V1\Authors;
 
+use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Http\Request;
 use LaravelJsonApi\Contracts\Auth\Authorizer;
+use Spatie\Permission\Models\Role;
 
 class AuthorAuthorizer implements Authorizer
 {
@@ -69,7 +71,25 @@ class AuthorAuthorizer implements Authorizer
      */
     public function updateRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
-        return false;
+        if ($fieldName !== 'roles') {
+            return false;
+        }
+
+        $actor = $request->user();
+        if (! $actor) {
+            return false;
+        }
+
+        if ($denied = $this->preventSuperAdminSelfRemoval($request, $actor, $model)) {
+            return $denied;
+        }
+
+        if ($actor->hasRole('super-admin')) {
+            return true;
+        }
+
+        return $actor->tokenCan('authors:update-roles')
+            && $actor->hasPermissionTo('authors:update-roles');
     }
 
     /**
@@ -86,5 +106,26 @@ class AuthorAuthorizer implements Authorizer
     public function detachRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
         return false;
+    }
+
+    private function preventSuperAdminSelfRemoval(Request $request, User $actor, object $target): ?Response
+    {
+        if (! $target instanceof User || ! $actor->is($target) || ! $target->hasRole('super-admin')) {
+            return null;
+        }
+
+        $newRoleIds = collect($request->input('data', []))
+            ->pluck('id')
+            ->filter()
+            ->all();
+
+        $stillHasSuperAdmin = Role::whereIn('id', $newRoleIds)
+            ->where('name', 'super-admin')
+            ->where('guard_name', 'api')
+            ->exists();
+
+        return $stillHasSuperAdmin
+            ? null
+            : Response::deny('You cannot remove the super-admin role from yourself.');
     }
 }

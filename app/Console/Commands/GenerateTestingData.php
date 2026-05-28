@@ -9,7 +9,8 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
-use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\Artisan;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 #[Signature('app:generate-testing-data {--force : Skip confirmation}')]
@@ -60,14 +61,9 @@ class GenerateTestingData extends Command
         $this->info('User UUID:');
         $this->line($user->id);
 
-        $permissions = collect([
-            'articles:index', 'articles:show', 'articles:store', 'articles:update',
-            'categories:index', 'categories:show',
-            'authors:index', 'authors:show',
-        ])->map(fn (string $name) => Permission::findOrCreate($name, 'api'));
-
+        Artisan::call('generate:roles');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $user->syncPermissions($permissions);
+        $user->syncRoles([Role::findByName('editor', 'api')]);
 
         $this->info('Token:');
         $this->line($user->createToken('fvasquez')->accessToken);

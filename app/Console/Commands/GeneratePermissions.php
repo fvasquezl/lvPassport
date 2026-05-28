@@ -16,6 +16,17 @@ class GeneratePermissions extends Command
     /** @var array<int, string> */
     public const array ABILITIES = ['index', 'show', 'store', 'update', 'delete'];
 
+    /**
+     * Relationship-level abilities that policies/authorizers reference but
+     * do not follow the standard {type}:{ability} pattern.
+     *
+     * @var array<int, string>
+     */
+    public const array RELATIONSHIP_PERMISSIONS = [
+        'authors:show-roles',
+        'authors:update-roles',
+    ];
+
     public function handle(): int
     {
         $types = JsonApi::server('v1')->schemas()->types();
@@ -24,6 +35,10 @@ class GeneratePermissions extends Command
             foreach (self::ABILITIES as $ability) {
                 Permission::findOrCreate("{$type}:{$ability}", 'api');
             }
+        }
+
+        foreach (self::RELATIONSHIP_PERMISSIONS as $name) {
+            Permission::findOrCreate($name, 'api');
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
