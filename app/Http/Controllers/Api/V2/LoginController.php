@@ -1,12 +1,19 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * V2 Login Controller.
+ *
+ * Issues tokens with explicit, documented OAuth 2.0 scopes only.
+ * Defaults to ['read'] when no scopes are provided in the request.
+ * Never issues wildcard ['*'] tokens.
+ */
 class LoginController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
@@ -14,6 +21,8 @@ class LoginController extends Controller
         $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
+            'scopes' => ['sometimes', 'array'],
+            'scopes.*' => ['string'],
         ]);
 
         if (! Auth::attempt($request->only('email', 'password'))) {
@@ -21,7 +30,8 @@ class LoginController extends Controller
         }
 
         $user = Auth::user();
-        $token = $user->createToken('api-token', ['*'])->accessToken;
+        $scopes = $request->input('scopes', ['read']);
+        $token = $user->createToken('api-token-v2', $scopes)->accessToken;
 
         return response()->json([
             'token' => $token,

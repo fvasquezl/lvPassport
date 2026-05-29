@@ -1,6 +1,7 @@
 <?php
 
 use App\JsonApi\V1\Server;
+use App\JsonApi\V2\Server as V2Server;
 
 return [
 
@@ -30,5 +31,6 @@ return [
     */
     'servers' => [
         'v1' => Server::class,
+        'v2' => V2Server::class,
     ],
 ];

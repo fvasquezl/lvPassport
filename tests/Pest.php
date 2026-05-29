@@ -13,7 +13,7 @@ use Tests\TestCase;
 pest()->beforeEach(function () {
     app(ClientRepository::class)
         ->createPersonalAccessGrantClient('Test PAT', 'users');
-})->in('Feature/Auth');
+})->in('Feature/Auth', 'Feature/V2/Auth');
 
 /*
 |--------------------------------------------------------------------------

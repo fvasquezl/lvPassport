@@ -9,6 +9,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
+use Laravel\Passport\Client as OAuthClient;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -17,12 +18,13 @@ use Spatie\Permission\PermissionRegistrar;
 class GenerateTestingData extends Command
 {
     use ConfirmableTrait;
+
     /**
      * Execute the console command.
      */
     public function handle()
     {
-         if (! $this->confirmToProceed()) {
+        if (! $this->confirmToProceed()) {
             return 1;
         }
 
@@ -36,7 +38,7 @@ class GenerateTestingData extends Command
             'javascript' => 'Javascript',
             'nextjs' => 'NexJS',
             'python' => 'Python',
-            
+
             'php' => 'PHP',
             'typescript' => 'TypeScript',
             'other' => 'Other',
@@ -68,6 +70,14 @@ class GenerateTestingData extends Command
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         $user->syncPermissions($permissions);
+
+        // Ensure a personal access client exists (idempotent)
+        $hasPersonalClient = OAuthClient::all()
+            ->first(fn (OAuthClient $c) => $c->hasGrantType('personal_access')) !== null;
+
+        if (! $hasPersonalClient) {
+            $this->call('passport:client', ['--personal' => true, '--name' => 'Personal Access Client', '--no-interaction' => true]);
+        }
 
         $this->info('Token:');
         $this->line($user->createToken('fvasquez')->accessToken);

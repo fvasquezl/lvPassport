@@ -16,6 +16,12 @@ class GeneratePermissions extends Command
     /** @var array<int, string> */
     public const array ABILITIES = ['index', 'show', 'store', 'update', 'delete'];
 
+    /** @var array<int, string> */
+    public const array RELATIONSHIP_PERMISSIONS = [
+        'articles:update-authors',
+        'articles:update-categories',
+    ];
+
     public function handle(): int
     {
         $types = JsonApi::server('v1')->schemas()->types();
@@ -26,11 +32,16 @@ class GeneratePermissions extends Command
             }
         }
 
+        foreach (self::RELATIONSHIP_PERMISSIONS as $permission) {
+            Permission::findOrCreate($permission, 'api');
+        }
+
+        Permission::findOrCreate('read', 'api');
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->info('Permissions generated!');
 
         return self::SUCCESS;
-
     }
 }
