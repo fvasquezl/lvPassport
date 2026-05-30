@@ -27,3 +27,22 @@ it('is idempotent: running twice does not duplicate permissions', function () {
 
     expect(Permission::query()->count())->toBe($countAfterFirst);
 });
+
+it('generates relationship-specific permissions for articles', function () {
+    $this->artisan('generate:permissions')
+        ->assertSuccessful();
+
+    $names = Permission::query()->pluck('name')->all();
+
+    expect($names)
+        ->toContain('articles:update-authors')
+        ->toContain('articles:update-categories');
+});
+
+it('generates the read scope permission', function () {
+    $this->artisan('generate:permissions')
+        ->assertSuccessful();
+
+    expect(Permission::where('name', 'read')->where('guard_name', 'api')->exists())
+        ->toBeTrue();
+});

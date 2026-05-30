@@ -25,6 +25,8 @@ class GeneratePermissions extends Command
     public const array RELATIONSHIP_PERMISSIONS = [
         'authors:show-roles',
         'authors:update-roles',
+        'articles:update-authors',
+        'articles:update-categories',
     ];
 
     public function handle(): int
@@ -41,11 +43,12 @@ class GeneratePermissions extends Command
             Permission::findOrCreate($name, 'api');
         }
 
+        Permission::findOrCreate('read', 'api');
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->info('Permissions generated!');
 
         return self::SUCCESS;
-
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Policies\AuthorPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use Illuminate\Support\Facades\Gate;
@@ -26,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(User::class, AuthorPolicy::class);
+
         Gate::before(function (User $user, string $ability): ?bool {
             return $user->hasRole('super-admin') ? true : null;
         });
@@ -40,6 +43,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Passport::tokensCan([
+            // General
+            'read' => 'Read-only access (default V2 scope)',
+
             // Articles
             'articles:index' => 'List articles',
             'articles:show' => 'View an article',
