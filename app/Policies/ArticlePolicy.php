@@ -93,4 +93,9 @@ class ArticlePolicy
     {
         return true;
     }
+
+    public function showComments(?User $user, Article $article): bool
+    {
+        return true;
+    }
 }

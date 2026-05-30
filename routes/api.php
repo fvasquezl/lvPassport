@@ -54,7 +54,16 @@ JsonApiRoute::server('v2')
                         '*' => [],
                         'update' => 'auth:api',
                     ]);
+                $relationships->hasMany('comments')->readOnly();
             });
+
+        $server->resource('comments', JsonApiController::class)
+            ->middleware([
+                '*' => [],
+                'store' => 'auth:api',
+                'update' => 'auth:api',
+                'destroy' => 'auth:api',
+            ]);
 
         // Authors — read-only resource; the roles relationship is writable (assign roles).
         $server->resource('authors', JsonApiController::class)

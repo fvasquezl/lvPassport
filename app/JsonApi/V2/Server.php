@@ -5,6 +5,7 @@ namespace App\JsonApi\V2;
 use App\JsonApi\V2\Articles\ArticleSchema;
 use App\JsonApi\V2\Authors\AuthorSchema;
 use App\JsonApi\V2\Categories\CategorySchema;
+use App\JsonApi\V2\Comments\CommentSchema;
 use App\JsonApi\V2\Permissions\PermissionSchema;
 use App\JsonApi\V2\Roles\RoleSchema;
 use LaravelJsonApi\Core\Server\Server as BaseServer;
@@ -36,6 +37,7 @@ class Server extends BaseServer
             ArticleSchema::class,
             AuthorSchema::class,
             CategorySchema::class,
+            CommentSchema::class,
             RoleSchema::class,
             PermissionSchema::class,
         ];

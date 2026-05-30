@@ -65,6 +65,13 @@ class AppServiceProvider extends ServiceProvider
             'categories:delete' => 'Delete a category',
             'categories:show-articles' => 'View a category\'s articles',
 
+            // Comments
+            'comments:index' => 'List comments',
+            'comments:show' => 'View a comment',
+            'comments:store' => 'Create a comment',
+            'comments:update' => 'Update a comment',
+            'comments:delete' => 'Delete a comment',
+
             // Authors
             'authors:index' => 'List authors',
             'authors:show' => 'View an author',
