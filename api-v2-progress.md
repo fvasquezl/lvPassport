@@ -8,7 +8,7 @@
 
 ## Estado actual
 
-**Implementación completa. Falta: `/sdd-verify`.**
+**Implementación completa y verificada (`/sdd-verify`). Mergeado a `main` junto con la feature de roles/permisos de V1.**
 
 | Fase | Tasks | Estado |
 |------|-------|--------|
@@ -17,8 +17,9 @@
 | 3 — Resources (Schemas/Requests/Authorizers) | 10/10 | ✓ |
 | 4 — Comandos | 2/2 | ✓ |
 | 5 — Tests V2 | 19/19 | ✓ |
+| 6 — Verificación (`/sdd-verify`) | — | ✓ |
 
-**Suite de tests: 302/302 pasando.**
+**Suite de tests: 323/323 pasando** (V1 + V2 combinados tras el merge).
 
 ---
 
@@ -82,7 +83,7 @@
 
 | Aspecto | V1 | V2 |
 |---------|----|----|
-| Login scope | `['*']` wildcard | Scopes explícitos, fallback `read` |
+| Login scope | Scopes derivados de los permisos del usuario (`getAllPermissions`) | Scopes explícitos del request, fallback `read` |
 | AuthorAuthorizer | Raw `tokenCan()` | `Gate::inspect()` → AuthorPolicy |
 | Categories filtros | No tiene | name, slug, search |
 | Categories sorts | No tiene | name, slug, createdAt, updatedAt |
@@ -93,14 +94,11 @@
 
 ## Próximo paso
 
-Correr verificación:
+Verificación `/sdd-verify api-v2` **completada** (commit `9df2078`) y mergeada a `main`. La implementación cumple los escenarios de la spec (#106) y la suite (323/323) pasa.
 
-```bash
-# En la siguiente sesión, retomar con:
-/sdd-verify api-v2
-```
-
-Esto valida que la implementación cumple cada escenario de la spec (#106).
+Pendientes opcionales:
+- Documentar V2 en el `README.md` (hoy describe solo V1).
+- Decidir si V1 se deja como legacy o se deprecia a favor de V2.
 
 ---
 

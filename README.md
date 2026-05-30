@@ -9,7 +9,7 @@
 
 ## Autenticación: OAuth2 con Laravel Passport
 
-El API usa **OAuth 2.0 estándar** vía Laravel Passport. No hay endpoints custom de `login` o `register` — la emisión de tokens es responsabilidad de los endpoints OAuth nativos de Passport (`/oauth/...`), y los usuarios se crean por seeder o admin (no por API pública).
+El API usa **OAuth 2.0 estándar** vía Laravel Passport. Además de los endpoints OAuth nativos (`/oauth/...`), expone un endpoint custom `POST /api/v1/login` que valida credenciales y emite un Personal Access Token **scopeado a los permisos Spatie del usuario** (`$user->getAllPermissions()->pluck('name')`), no un wildcard `*`. Los usuarios se crean por seeder o admin (no por API pública de registro).
 
 ### Grants habilitados
 
@@ -38,8 +38,11 @@ El Personal Access Client es **requisito** para que `Passport::actingAs()` en te
 
 | Método | Path | Controller | Middleware |
 |---|---|---|---|
+| `POST` | `/api/v1/login` | `App\Http\Controllers\Api\LoginController` | — |
 | `GET` | `/api/v1/user` | `App\Http\Controllers\Api\UserController` | `auth:api` |
 | `POST` | `/api/v1/logout` | `App\Http\Controllers\Api\LogoutController` | `auth:api` |
+
+`login` valida `email` + `password`, y si `Auth::attempt` pasa emite un token con scopes derivados de los permisos del usuario. Responde `{ token, user }`.
 
 `logout` revoca el token actual (`$request->user()->token()->revoke()`) y responde **204**. Passport no elimina los tokens: los marca con `revoked = true` en `oauth_access_tokens`.
 
@@ -220,13 +223,15 @@ Relaciones disponibles: `authors` (to-one), `categories` (to-one).
 
 CRUD completo. **Sin ownership** (las categorías no pertenecen a un usuario), así que las escrituras usan **dos capas** (scope + permission) y las lecturas usan **una capa** (solo scope), siguiendo el patrón del proyecto descrito arriba.
 
+El `CategoryAuthorizer` delega cada acción al `CategoryPolicy` vía `Gate::inspect` (`viewAny`, `view`, `create`, `update`, `delete`).
+
 | Acción | Middleware | Autorización | Estado |
 |--------|-----------|--------------|--------|
-| `index` | — | `tokenCan('categories:index')` (planeado) | ⚠️ `CategoryAuthorizer::index` TODO → 500 |
-| `show` | — | `tokenCan('categories:show')` | ✅ |
-| `store` | `auth:api` | `tokenCan('categories:store') + hasPermissionTo('categories:store')` | ✅ |
-| `update` | `auth:api` | `tokenCan('categories:update') + hasPermissionTo('categories:update')` (planeado) | ⚠️ `CategoryAuthorizer::update` TODO → 500 |
-| `destroy` | `auth:api` | `tokenCan('categories:delete') + hasPermissionTo('categories:delete')` | ✅ |
+| `index` | — | `Gate::inspect('viewAny')` → `tokenCan('categories:index')` | ✅ |
+| `show` | — | `Gate::inspect('view')` → `tokenCan('categories:show')` | ✅ |
+| `store` | `auth:api` | `Gate::inspect('create')` → `tokenCan('categories:store') + hasPermissionTo('categories:store')` | ✅ |
+| `update` | `auth:api` | `Gate::inspect('update')` → `tokenCan('categories:update') + hasPermissionTo('categories:update')` | ✅ |
+| `destroy` | `auth:api` | `Gate::inspect('delete')` → `tokenCan('categories:delete') + hasPermissionTo('categories:delete')` | ✅ |
 
 Relación disponible: `articles` (to-many, **solo lectura** vía `->readOnly()`).
 
@@ -261,6 +266,89 @@ Cobertura de las relaciones `articles` (1 capa, solo scope):
 | `can fetch articles relationship` | `categories:show-articles` | **200** | `GET /categories/{cat}/relationships/articles` — solo linkage (type, id). |
 | `guest cannot fetch related articles` | — | **401** | Sin token, el Gate niega y JSON:API responde Unauthenticated (no Forbidden) aunque la ruta no tenga `auth:api`. |
 | `users without scope cannot fetch related articles` | ❌ | **403** | Token sin scope → `tokenCan` retorna false → deny. |
+
+### Authors (`/api/v1/authors`)
+
+Recurso **solo lectura** (`index`, `show`) — los autores son `User` y no se crean/editan/borran vía API. El `AuthorAuthorizer` usa `tokenCan()` crudo para las lecturas. Su parte interesante es la relación **roles**, que sí es escribible y concentra la lógica de asignación de roles.
+
+| Endpoint | Autorización |
+|----------|--------------|
+| `GET /authors`, `GET /authors/{author}` | `tokenCan('authors:index' / 'authors:show')` |
+| `GET /authors/{author}/articles` (to-many, RO) | `tokenCan('authors:show-articles')` |
+| `GET /authors/{author}/roles` | `tokenCan('authors:show-roles')` |
+| `PATCH /authors/{author}/relationships/roles` | ver tabla abajo |
+
+Reglas de `updateRelationship('roles')` en `AuthorAuthorizer`:
+
+| Condición | Resultado |
+|-----------|-----------|
+| Sin token | **401** |
+| El actor es `super-admin` | ✅ permitido (bypass) |
+| Actor intenta quitarse a sí mismo el rol `super-admin` | **403** (`preventSuperAdminSelfRemoval`) |
+| Resto | requiere `tokenCan('authors:update-roles')` **y** `hasPermissionTo('authors:update-roles')` |
+
+> El "self-removal guard" lee los IDs de rol del payload entrante y deniega si el actor super-admin quedaría sin ese rol — evita quedarse sin administradores por accidente.
+
+### Roles (`/api/v1/roles`) y Permissions (`/api/v1/permissions`)
+
+Gestión RBAC sobre los modelos de **Spatie Permission**, expuestos como recursos JSON:API.
+
+**`roles`** — CRUD completo. Campos: `name` + relación `permissions` (to-many, `BelongsToMany`). Toda la ruta va con `auth:api`. El `RoleAuthorizer` delega al `RolePolicy` (`tokenCan('roles:*') + hasPermissionTo('roles:*')`), con dos reglas de negocio extra:
+
+| Acción sobre el rol `super-admin` | Resultado |
+|-----------------------------------|-----------|
+| `update` / `updateRelationship` | **403** — *"The super-admin role is immutable."* |
+| `destroy` | **403** — *"The super-admin role cannot be deleted."* |
+
+**`permissions`** — **solo lectura** (`index`, `show`). Campo: `name`. Sirve para que el cliente liste las permissions disponibles al construir roles.
+
+#### Roles del sistema (`php artisan generate:roles`)
+
+El comando crea estos roles en el guard `api` con sus permisos sincronizados:
+
+| Rol | Permisos |
+|-----|----------|
+| `admin` | Todas las abilities (`{type}:{ability}`) × recursos + permisos de relación |
+| `editor` | Solo lectura (`*:index`, `*:show`) + `articles:store`, `articles:update` |
+| `viewer` | Solo lectura (`*:index`, `*:show`) |
+| `super-admin` | **Sin permisos** — hace bypass total vía `Gate::before` en `AppServiceProvider` |
+
+> `super-admin` no necesita permisos: `Gate::before(fn ($user) => $user->hasRole('super-admin') ? true : null)` aprueba cualquier ability antes de evaluar policies.
+
+---
+
+## API V2 (`/api/v2`)
+
+V2 es una **segunda versión del API construida con SDD** (Spec-Driven Development) que convive con V1 sin tocarla. Servidor JSON:API registrado en `config/jsonapi.php` (`App\JsonApi\V2\Server`, baseUri `/api/v2`), con sus rutas HTTP + JSON:API en `routes/api.php`.
+
+Recursos V2: **articles**, **categories**, **authors** (no incluye roles/permissions — eso es exclusivo de V1).
+
+### Diferencias clave V2 vs V1
+
+| Aspecto | V1 | V2 |
+|---------|----|----|
+| **Login** (`POST /login`) | Scopes derivados de **todos los permisos** del usuario | Scopes **explícitos del request**, fallback `['read']`. Nunca emite wildcard `*` |
+| **AuthorAuthorizer** | `tokenCan()` crudo | `Gate::inspect()` → `AuthorPolicy` (reads = `tokenCan('read')`, writes siempre `false`) |
+| **Categories: filtros** | — | `name`, `slug`, `search` (scopes en el modelo `Category`) |
+| **Categories: sorts** | — | `name`, `slug`, `createdAt`, `updatedAt` |
+| **Categories: paginación** | — | `PagePagination` |
+| **Articles: filtros** | básicos | `title`, `content`, `year`, `month`, `search`, `categories`, `authors` + `WhereIdIn` |
+| **Articles: ownership en store** | en `ArticlePolicy::create` | en `ArticleAuthorizer::store`: verifica que `data.relationships.authors.data.id` == usuario autenticado, si no **403** |
+| **Update de relaciones** | solo `authors`/`categories` con `auth:api` | `ArticleAuthorizer::updateRelationship` → `Gate::inspect('update{Field}')` |
+
+### Auth V2
+
+- **`POST /api/v2/login`** (`App\Http\Controllers\Api\V2\LoginController`) — valida `email`, `password` y un `scopes[]` opcional; emite `api-token-v2` con esos scopes (o `['read']` por defecto). Documentado para **nunca** emitir `['*']`.
+- **`AuthorPolicy`** — las lecturas de autores requieren token con scope `read` (sin check de permission Spatie, por decisión de diseño V2); cualquier escritura (`create`/`update`/`delete`) retorna `false`.
+- Scope `read` registrado en `Passport::tokensCan()` (`AppServiceProvider`) como "Read-only access (default V2 scope)".
+
+### Decisiones de diseño V2 (registradas en `api-v2-progress.md`)
+
+1. Token sin permisos en login V2 → emitir scope mínimo `read` (no wildcard).
+2. Lecturas de autores → `tokenCan()` solamente, sin `hasPermissionTo()`.
+3. `generate:permissions` es idempotente → seguro de correr en producción.
+
+> El progreso completo de la construcción SDD de V2 (fases, escenarios, artefactos) vive en **`api-v2-progress.md`**.
 
 ---
 
