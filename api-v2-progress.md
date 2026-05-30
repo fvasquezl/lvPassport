@@ -31,11 +31,11 @@
 | Explore (mapa de V1) | #103 | `sdd/api-v2/explore` | — |
 | Proposal | #104 | `sdd/api-v2/proposal` | — |
 | Design | #105 | `sdd/api-v2/design` | — |
-| Spec (escenarios) | #106 | `sdd/api-v2/spec` | **[`specs/api-v2.md`](specs/api-v2.md)** ✓ |
+| Spec (escenarios) | #106 | `sdd/api-v2/spec` | **[`specs/api-v2/`](specs/api-v2/README.md)** ✓ |
 | Tasks (39 tasks) | #107 | `sdd/api-v2/tasks` | — |
 
 > **Nota:** sin Engram en sesión, la spec se **reconstruyó en el repo** como escenarios
-> Given-When-Then en `specs/api-v2.md`, derivada de los tests de `tests/Feature/V2/` y de la
+> Given-When-Then en `specs/api-v2/` (un archivo por test), derivada de los tests de `tests/Feature/V2/` y de la
 > implementación. Es ahora la copia versionada y autoritativa dentro del proyecto.
 
 ---
