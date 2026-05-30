@@ -14,7 +14,7 @@
 
 V2 es una segunda versión del API JSON:API que **convive con V1 sin modificarla**. Servidor
 `App\JsonApi\V2\Server` con baseUri `/api/v2`. Recursos: **articles**, **categories**,
-**authors** (no expone roles ni permissions — eso es exclusivo de V1).
+**authors**, **roles** y **permissions** — paridad de recursos con V1.
 
 ### Modelo de autorización V2
 
@@ -414,6 +414,136 @@ Scenario: Usuario con read lista autores                → 200 (incluye al usua
 
 ---
 
+## RBAC en V2 — decisiones de diseño
+
+> Los recursos `roles`/`permissions` y la relación `authors.roles` se llevan a V2 con **paridad
+> de comportamiento** respecto a V1. Decisiones:
+>
+> - **D1 — Policies compartidas.** `roles`/`permissions` reutilizan las policies globales
+>   `RolePolicy` y `PermissionPolicy` (registradas en `AppServiceProvider`, no por versión).
+>   Misma autorización que V1: `tokenCan('roles:*' / 'permissions:*')` **y**
+>   `hasPermissionTo(...)`. No se crean policies nuevas ni permisos nuevos (se reusan los de V1).
+> - **D2 — super-admin inmutable.** El rol `super-admin` no se puede actualizar ni borrar
+>   (ni vía atributos ni vía relación) → **403**.
+> - **D3 — authors.roles.** Lecturas requieren `tokenCan('authors:show-roles')`. Escrituras
+>   requieren `authors:update-roles` (scope + permission), con **bypass de super-admin** y el
+>   **guard de auto-remoción** (un super-admin no puede quitarse a sí mismo ese rol).
+> - **D4 — Gate::before.** El bypass global de `super-admin` aplica a todo lo anterior.
+> - Todas las rutas RBAC de V2 van bajo `auth:api` (igual que V1).
+
+## Feature 7 — Roles (`/api/v2/roles`)
+
+> CRUD de roles Spatie. Autorización vía `RolePolicy` (scope + permission). Rutas `auth:api`.
+
+```gherkin
+Scenario: super-admin puede listar roles
+  Given un super-admin autenticado y roles existentes
+  When hace GET /api/v2/roles
+  Then 200  And data.0.type == "roles"
+
+Scenario: super-admin puede crear un rol
+  Given un super-admin autenticado
+  When hace POST /api/v2/roles con name = "new-role"
+  Then 201 con attributes.name == "new-role"  And existe en BD con guard_name "api"
+
+Scenario: roles creados vía API usan guard_name "api" por defecto
+  Given un super-admin autenticado
+  When crea un rol sin especificar guard
+  Then 201  And el rol queda con guard_name "api"
+
+Scenario: super-admin puede actualizar un rol que no es super-admin
+  Given un super-admin y un rol "to-rename"
+  When hace PATCH /api/v2/roles/{id} con name = "renamed"
+  Then 200  And el rol queda renombrado
+
+Scenario: super-admin puede borrar un rol que no es super-admin
+  Given un super-admin y un rol "disposable"
+  When hace DELETE /api/v2/roles/{id}
+  Then 204  And el rol ya no existe
+
+Scenario: el rol super-admin no se puede actualizar
+  Given un super-admin y el rol "super-admin"
+  When intenta PATCH sobre el rol super-admin
+  Then 403  And el rol sigue llamándose "super-admin"
+
+Scenario: el rol super-admin no se puede borrar
+  Given un super-admin y el rol "super-admin"
+  When intenta DELETE sobre el rol super-admin
+  Then 403  And el rol sigue existiendo
+
+Scenario: invitados no pueden listar roles
+  Then GET /api/v2/roles responde 401
+
+Scenario: usuario sin permiso roles:index no puede listar
+  Given un usuario autenticado sin el permiso
+  Then 403
+
+Scenario: usuario con scope pero sin permiso no puede crear roles
+  Given un usuario con token ['roles:store'] pero sin la permission Spatie
+  When hace POST /api/v2/roles
+  Then 403  And no se crea el rol
+
+Scenario: miembros del rol admin pueden listar roles
+  Given un usuario con rol admin y permiso roles:index, token ['roles:index']
+  Then GET /api/v2/roles responde 200
+```
+
+## Feature 8 — Permissions (`/api/v2/permissions`)
+
+> Solo lectura (`index`, `show`). Autorización vía `PermissionPolicy` (scope + permission).
+
+```gherkin
+Scenario: super-admin puede listar permissions
+  Given un super-admin y permissions existentes
+  When hace GET /api/v2/permissions
+  Then 200  And data.0.type == "permissions"
+
+Scenario: invitados no pueden listar permissions
+  Then GET /api/v2/permissions responde 401
+
+Scenario: usuarios sin permiso no pueden listar permissions
+  Given un usuario autenticado sin permiso
+  Then 403
+
+Scenario: el recurso permissions no expone rutas de escritura
+  Then no existen api.v2.permissions.store / update / destroy
+```
+
+## Feature 9 — Relación Authors → Roles (`PATCH /api/v2/authors/{author}/relationships/roles`)
+
+> Asignación de roles a un autor. Reglas D3 + D4.
+
+```gherkin
+Scenario: super-admin puede asignar un rol a otro usuario
+  Given un super-admin y un rol "capturista" y un usuario objetivo
+  When hace PATCH .../roles con [{type: roles, id}]
+  Then 2xx  And el objetivo tiene el rol "capturista"
+
+Scenario: super-admin puede reemplazar los roles de otro usuario
+  Given un objetivo con rol "viewer"
+  When un super-admin hace PATCH .../roles con el rol "editor"
+  Then 2xx  And el objetivo tiene "editor" y ya no "viewer"
+
+Scenario: un super-admin NO puede quitarse a sí mismo el rol super-admin
+  Given un super-admin actuando sobre sí mismo
+  When hace PATCH .../roles con un set que no incluye super-admin
+  Then 403  And conserva el rol super-admin
+
+Scenario: un super-admin puede degradar a OTRO super-admin
+  Given un super-admin actor y otro usuario super-admin
+  When el actor hace PATCH .../roles del otro con [editor]
+  Then 2xx  And el otro pierde super-admin y gana editor
+
+Scenario: usuario sin permiso authors:update-roles no puede asignar roles
+  Given un usuario con token ['authors:update-roles'] pero sin la permission
+  Then PATCH .../roles responde 403
+
+Scenario: invitados no pueden asignar roles
+  Then PATCH .../roles responde 401
+```
+
+---
+
 ## Trazabilidad
 
 Cada feature mapea a archivos de test (la fuente de verdad ejecutable):
@@ -426,6 +556,9 @@ Cada feature mapea a archivos de test (la fuente de verdad ejecutable):
 | 4 — Articles | `tests/Feature/V2/Articles/{Create,Update,Delete,List,Filter}ArticlesTest.php` |
 | 5 — Categories | `tests/Feature/V2/Categories/{Create,Update,Delete,List,Filter,Sort,Paginate}CategoriesTest.php` |
 | 6 — Authors | `tests/Feature/V2/Authors/ListAuthorsTest.php` |
+| 7 — Roles | `tests/Feature/V2/Roles/RolesCrudTest.php` |
+| 8 — Permissions | `tests/Feature/V2/Permissions/IndexPermissionsTest.php` |
+| 9 — Authors→Roles | `tests/Feature/V2/AuthorsRoles/AssignRolesTest.php` |
 
 Implementación: `app/JsonApi/V2/` (Schemas, Requests, Authorizers), `app/Policies/AuthorPolicy.php`,
 `app/Http/Controllers/Api/V2/LoginController.php`, `routes/api.php`, `config/jsonapi.php`.

@@ -56,11 +56,15 @@ JsonApiRoute::server('v2')
                     ]);
             });
 
-        // Authors — read-only
+        // Authors — read-only resource; the roles relationship is writable (assign roles).
         $server->resource('authors', JsonApiController::class)
-            ->relationships(function ($server) {
-                $server->hasMany('articles')->readOnly();
-            })->only('index', 'show');
+            ->only('index', 'show')
+            ->relationships(function ($relationships) {
+                $relationships->hasMany('articles')->readOnly();
+                $relationships->hasMany('roles')->middleware([
+                    '*' => 'auth:api',
+                ]);
+            });
 
         $server->resource('categories', JsonApiController::class)
             ->middleware([
@@ -72,6 +76,16 @@ JsonApiRoute::server('v2')
             ->relationships(function ($server) {
                 $server->hasMany('articles')->readOnly();
             });
+
+        $server->resource('roles', JsonApiController::class)
+            ->middleware(['*' => 'auth:api'])
+            ->relationships(function ($relationships) {
+                $relationships->hasMany('permissions');
+            });
+
+        $server->resource('permissions', JsonApiController::class)
+            ->only('index', 'show')
+            ->middleware(['*' => 'auth:api']);
     });
 
 // ─── V1 JSON:API resource routes ──────────────────────────────────────────────

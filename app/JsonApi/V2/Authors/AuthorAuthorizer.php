@@ -2,10 +2,12 @@
 
 namespace App\JsonApi\V2\Authors;
 
+use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use LaravelJsonApi\Contracts\Auth\Authorizer;
+use Spatie\Permission\Models\Role;
 
 class AuthorAuthorizer implements Authorizer
 {
@@ -61,9 +63,15 @@ class AuthorAuthorizer implements Authorizer
 
     /**
      * Authorize the show-related controller action.
+     *
+     * The roles relationship requires the authors:show-roles scope (parity with V1).
      */
     public function showRelated(Request $request, object $model, string $fieldName): bool|Response
     {
+        if ($fieldName === 'roles') {
+            return $request->user()?->tokenCan('authors:show-roles') ?? false;
+        }
+
         return Gate::inspect('show'.ucfirst($fieldName), $model);
     }
 
@@ -72,15 +80,40 @@ class AuthorAuthorizer implements Authorizer
      */
     public function showRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
+        if ($fieldName === 'roles') {
+            return $request->user()?->tokenCan('authors:show-roles') ?? false;
+        }
+
         return Gate::inspect('show'.ucfirst($fieldName), $model);
     }
 
     /**
      * Authorize the update-relationship controller action.
+     *
+     * Only the roles relationship is writable. super-admin bypasses the scope/permission
+     * checks, but may not strip the super-admin role from themselves.
      */
     public function updateRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
-        return false;
+        if ($fieldName !== 'roles') {
+            return false;
+        }
+
+        $actor = $request->user();
+        if (! $actor) {
+            return false;
+        }
+
+        if ($denied = $this->preventSuperAdminSelfRemoval($request, $actor, $model)) {
+            return $denied;
+        }
+
+        if ($actor->hasRole('super-admin')) {
+            return true;
+        }
+
+        return $actor->tokenCan('authors:update-roles')
+            && $actor->hasPermissionTo('authors:update-roles');
     }
 
     /**
@@ -97,5 +130,29 @@ class AuthorAuthorizer implements Authorizer
     public function detachRelationship(Request $request, object $model, string $fieldName): bool|Response
     {
         return false;
+    }
+
+    /**
+     * Deny when a super-admin actor would strip their own super-admin role.
+     */
+    private function preventSuperAdminSelfRemoval(Request $request, User $actor, object $target): ?Response
+    {
+        if (! $target instanceof User || ! $actor->is($target) || ! $target->hasRole('super-admin')) {
+            return null;
+        }
+
+        $newRoleIds = collect($request->input('data', []))
+            ->pluck('id')
+            ->filter()
+            ->all();
+
+        $stillHasSuperAdmin = Role::whereIn('id', $newRoleIds)
+            ->where('name', 'super-admin')
+            ->where('guard_name', 'api')
+            ->exists();
+
+        return $stillHasSuperAdmin
+            ? null
+            : Response::deny('You cannot remove the super-admin role from yourself.');
     }
 }
