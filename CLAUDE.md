@@ -260,3 +260,9 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Do NOT delete tests without approval.
 
 </laravel-boost-guidelines>
+
+<!-- SPECKIT START -->
+Active spec-kit feature: **Article Comments (V2)** — plan at
+`specs/001-article-comments/plan.md` (spec, research, data-model, contracts, quickstart in the
+same directory). Read it for technologies, structure, and conventions before implementing tasks.
+<!-- SPECKIT END -->
