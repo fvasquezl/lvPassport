@@ -85,3 +85,15 @@ it('authenticated users cannot update other users comments', function () {
 
     $this->assertDatabaseHas('comments', ['id' => $comment->id, 'body' => $comment->body]);
 });
+
+it('a super-admin can update any users comment', function () {
+    $comment = Comment::factory()->create(); // belongs to someone else
+    Passport::actingAs(userWithRole('super-admin', []));
+
+    $this->jsonApi()
+        ->withData(updateCommentData($comment))
+        ->patch(route('api.v2.comments.update', $comment))
+        ->assertOk();
+
+    $this->assertDatabaseHas('comments', ['id' => $comment->id, 'body' => 'Body changed']);
+});

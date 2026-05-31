@@ -142,3 +142,24 @@ it('article is required', function () {
 
     $this->assertDatabaseEmpty('comments');
 });
+
+it('cannot create a comment on a non-existent article', function () {
+    $user = userWithPermission('comments:store');
+    Passport::actingAs($user, ['comments:store']);
+
+    $data = [
+        'type' => 'comments',
+        'attributes' => ['body' => 'Great article!'],
+        'relationships' => [
+            'author' => ['data' => ['type' => 'authors', 'id' => $user->getRouteKey()]],
+            'article' => ['data' => ['type' => 'articles', 'id' => 'non-existent-article']],
+        ],
+    ];
+
+    $this->jsonApi()
+        ->withData($data)
+        ->post(route('api.v2.comments.store'))
+        ->assertNotFound();
+
+    $this->assertDatabaseEmpty('comments');
+});

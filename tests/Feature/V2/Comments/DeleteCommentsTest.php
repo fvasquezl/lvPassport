@@ -68,3 +68,14 @@ it('authenticated users cannot delete other users comments', function () {
 
     $this->assertDatabaseHas('comments', ['id' => $comment->id]);
 });
+
+it('a super-admin can delete any users comment', function () {
+    $comment = Comment::factory()->create(); // belongs to someone else
+    Passport::actingAs(userWithRole('super-admin', []));
+
+    $this->jsonApi()
+        ->delete(route('api.v2.comments.destroy', $comment))
+        ->assertNoContent();
+
+    $this->assertModelMissing($comment);
+});
