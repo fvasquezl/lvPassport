@@ -1,17 +1,19 @@
 # Implementation Plan: Article Comments (V2)
 
-**Branch**: `001-article-comments` | **Date**: 2026-05-29 | **Spec**: [spec.md](spec.md)
+**Branch**: `002-article-comments` | **Date**: 2026-05-29 | **Spec**: [spec.md](spec.md)
 
-**Input**: Feature specification from `specs/001-article-comments/spec.md`
+**Input**: Feature specification from `specs/002-article-comments/spec.md`
 
 ## Summary
 
 Add a `comments` JSON:API resource to API **V2**: a comment belongs to an article and an author
 (User); an article has many comments (read-only relationship). Reads are public; writes use the
 project's three-layer authorization (scope + Spatie permission + ownership). Implementation mirrors
-the existing V2 `articles`/`categories` resources (Schema + Request + Authorizer), adds a `Comment`
-model + migration + factory, registers the schema and routes, and is verified with Pest feature
-tests. V1 is untouched.
+the existing V2 `articles`/`categories` resources (Schema + Request + Authorizer) **plus a dedicated
+`CommentPolicy`**: the `CommentAuthorizer` delegates scope+permission to the policy via
+`Gate::inspect`, the policy also enforces ownership on `update`/`delete`, and the authorizer enforces
+`store` ownership against the request payload. It adds a `Comment` model + migration + factory,
+registers the schema and routes, and is verified with Pest feature tests. V1 is untouched.
 
 ## Technical Context
 
@@ -54,7 +56,7 @@ Spatie Permission
 ### Documentation (this feature)
 
 ```text
-specs/001-article-comments/
+specs/002-article-comments/
 ├── plan.md              # This file
 ├── spec.md              # Feature spec
 ├── research.md          # Phase 0 output
@@ -71,10 +73,12 @@ specs/001-article-comments/
 app/
 ├── Models/
 │   └── Comment.php                              # new model (belongsTo article, user)
+├── Policies/
+│   └── CommentPolicy.php                         # create: scope+permission; update/delete: scope+permission+ownership
 └── JsonApi/V2/Comments/
     ├── CommentSchema.php                         # fields, relationships, authorizer ref
     ├── CommentRequest.php                        # body required; author/article relationships
-    └── CommentAuthorizer.php                     # 3-layer auth + ownership on store/update/delete
+    └── CommentAuthorizer.php                     # delegates to CommentPolicy via Gate::inspect; store-ownership vs payload
 
 database/
 ├── migrations/
@@ -87,6 +91,7 @@ app/JsonApi/V2/
 └── Articles/ArticleSchema.php                    # add HasMany('comments') (read-only rel)
 
 app/Models/Article.php                            # add comments() hasMany relation
+app/Policies/ArticlePolicy.php                    # showComments (authorize article → comments read)
 
 routes/api.php                                    # v2 comments resource + articles.comments rel
 

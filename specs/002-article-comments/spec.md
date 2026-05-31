@@ -1,6 +1,6 @@
 # Feature Specification: Article Comments (V2)
 
-**Feature Branch**: `001-article-comments`
+**Feature Branch**: `002-article-comments`
 
 **Created**: 2026-05-29
 

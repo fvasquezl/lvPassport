@@ -16,16 +16,28 @@ choices implied by the spec, grounded in the existing V2 conventions.
   `authors` (`->type('authors')`), mirroring how `articles` exposes its `authors` relationship.
 - **Rationale**: Consistency — the API already represents users as `authors`.
 
-## D3 — Ownership enforcement point
+## D3 — Authorization mechanism & ownership enforcement point
 
-- **Decision**: Enforce ownership in `CommentAuthorizer`:
-  - `store`: the `author` in the payload MUST equal the authenticated user (mirror
-    `V2\Articles\ArticleAuthorizer::store`, which compares `data.relationships.authors.data.id`).
-  - `update`/`delete`: the comment's `user_id` MUST equal the authenticated user.
-- **Rationale**: Matches the established V2 ownership pattern; keeps authz out of controllers.
-- **Alternatives**: A `CommentPolicy` via `Gate::inspect` (used by some V2 resources). The
-  authorizer-direct approach matches `ArticleAuthorizer` exactly and is simplest for ownership that
-  depends on request payload. (Either is acceptable per the constitution; pick the article pattern.)
+- **Decision (as implemented)**: Authorize through a dedicated **`CommentPolicy`** that the
+  `CommentAuthorizer` delegates to via `Gate::inspect`, splitting responsibilities by action:
+  - `index`/`show` and relationship reads → public (the authorizer returns `true`;
+    `CommentPolicy::viewAny`/`view` also return `true`).
+  - `store` → the authorizer returns `401` if unauthenticated, then calls
+    `Gate::inspect('create', Comment::class)` → `CommentPolicy::create` (scope `comments:store` +
+    permission `comments:store`). **`store` ownership is enforced in the authorizer** against the
+    request payload (`data.relationships.author.data.id` MUST equal the authenticated user), because
+    at create time there is no model yet — only the payload.
+  - `update`/`delete` → the authorizer calls `Gate::inspect('update'|'delete', $comment)` →
+    `CommentPolicy::update`/`delete` (scope + permission + ownership via `$comment->user->is($user)`).
+  - relationship writes (`updateRelationship`/`attach`/`detach`) → denied (`false`).
+- **Rationale**: Keeping scope+permission in a policy makes them unit-testable in isolation and
+  consistent with the V2 RBAC resources that already use `Gate`/policies; the *payload-dependent*
+  `store` ownership stays in the authorizer, where the incoming request is available. All
+  authorization remains out of controllers (constitution II).
+- **Alternative considered**: enforcing all three layers directly inside `CommentAuthorizer`
+  (mirroring `V2\Articles\ArticleAuthorizer::store`, which compares
+  `data.relationships.authors.data.id`). **Not chosen** — the policy split above was preferred. Both
+  approaches satisfy the constitution.
 
 ## D4 — Read visibility
 

@@ -46,6 +46,11 @@ Article (1) ──── hasMany ────▶ (N) Comment ◀──── bel
 | `delete` | yes | scope `comments:delete` + permission `comments:delete` + owns comment |
 | any (super-admin) | yes | bypass via `Gate::before` |
 
+**Mechanism** (see [research D3](research.md)): scope+permission live in `CommentPolicy`
+(`create`/`update`/`delete`), invoked by `CommentAuthorizer` via `Gate::inspect`. Ownership for
+`update`/`delete` is in the policy (`$comment->user->is($user)`); ownership for `store` is checked in
+the authorizer against the request payload (`author` id == authenticated user).
+
 ## State
 
 Comments have no lifecycle states (no draft/published/hidden) — flat, immutable except by their

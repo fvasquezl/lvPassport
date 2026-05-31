@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**lvPassport** is a Laravel 13 REST API implementing the [JSON:API specification](https://jsonapi.org/) with OAuth 2.0 authentication (Laravel Passport) and role-based access control (Spatie Permission). The domain is a simple articles/categories content system.
+**lvPassport** is a Laravel 13 REST API implementing the [JSON:API specification](https://jsonapi.org/) with OAuth 2.0 authentication (Laravel Passport) and role-based access control (Spatie Permission). The domain is an articles/categories content system, extended in V2 with article comments.
+
+**Two API versions run in parallel.** V1 (`/api/v1`) exposes articles, authors, categories, roles, permissions. V2 (`/api/v2`) is the current target (the Vue client consumes V2) and adds a **comments** resource plus a hardened auth design (see below). Each version has its own `app/JsonApi/V{n}/Server.php`, its own routes, and its own `LoginController`.
 
 ## Commands
 
@@ -36,31 +38,38 @@ sail composer test
 
 ## Architecture
 
-### JSON:API Layer (`app/JsonApi/V1/`)
+### JSON:API Layer (`app/JsonApi/V1/` and `app/JsonApi/V2/`)
 
-All API resources live under `app/JsonApi/V1/` and are registered in `Server.php`. Each resource has three files:
+API resources live under `app/JsonApi/V{n}/` and are registered in that version's `Server.php` (`allSchemas()`). Each resource has three files:
 
 - **Schema** — defines fields, filters, pagination, and relationships exposed by the API
 - **Request** — validates incoming JSON:API payloads
 - **Authorizer** — implements `LaravelJsonApi\Contracts\Auth\Authorizer`; controls per-action access
 
-The server base URI is `/api/v1`. Routes are registered in `routes/api.php` using `JsonApiRoute::server('v1')`. The `JsonApiController` is used by default — custom controllers are only needed for non-standard logic.
+Routes are registered in `routes/api.php` using `JsonApiRoute::server('v1')` / `server('v2')` under base URIs `/api/v1` and `/api/v2`. The `JsonApiController` is used by default — custom controllers are only needed for non-standard logic.
+
+**V2-specific**: adds the **comments** resource (`app/JsonApi/V2/Comments/`) and the `articles.comments` relationship. Comment reads are public; writes (`store`/`update`/`destroy`) require auth and enforce scope + permission + ownership in `CommentAuthorizer`. The V2 feature is tracked via spec-kit at `specs/002-article-comments/` and `api-v2-progress.md`.
 
 ### Authentication & Authorization
 
-- **Auth**: Laravel Passport issues OAuth 2.0 tokens. The `api` guard uses Passport. Protect routes with `auth:api` middleware.
-- **Permissions**: Spatie Permission manages named permissions on the `api` guard (e.g., `articles:store`). `ArticleAuthorizer` is the integration point — check permissions there, not in controllers.
-- **User model** uses UUIDs (`HasUuids`) and `HasApiTokens` (Passport).
+- **Auth**: Laravel Passport issues OAuth 2.0 tokens. The `api` guard uses Passport. Protect routes with `auth:api` middleware. OAuth scopes are declared in `AppServiceProvider` via `Passport::tokensCan([...])`.
+- **V2 token issuance**: the V2 `LoginController` mints tokens with **explicit scopes only** (no wildcard `*`), defaulting to `['read']`. The client requests exactly the scopes it needs at login (e.g. `articles:store`).
+- **Permissions (dual check)**: authorization requires **both** a Passport scope **and** a Spatie permission. The Authorizer is the integration point — check there, not in controllers. The `super-admin` role bypasses all gates via `Gate::before()` in `AppServiceProvider`.
+- **User model** uses UUIDs (`HasUuids`), `HasApiTokens` (Passport), and `HasRoles` (Spatie).
 
 ### Models & Relationships
 
 ```
-Category  ──hasMany──▶  Article  ◀──belongsTo──  User
+Category ──hasMany──▶ Article ◀──belongsTo── User
+                         │
+                      hasMany
+                         ▼
+                      Comment ──belongsTo──▶ User
 ```
 
-Article has `title`, `slug`, `content`, `category_id` (int), `user_id` (UUID).
+Article has `title`, `slug`, `content`, `category_id` (int), `user_id` (UUID), and `hasMany(Comment)`. Comment (V2) `belongsTo` Article (`article_id`, int) and User (`user_id`, UUID).
 
-The JSON:API schema uses `authors` as the type alias for the `user` relationship (`BelongsTo::make('authors', 'user')->type('authors')`).
+The JSON:API schemas use `authors` as the type alias for the `user` relationship (`BelongsTo::make('authors', 'user')->type('authors')`) — on both Article and Comment.
 
 ### Testing
 
@@ -75,10 +84,11 @@ Permissions must be created before use in `beforeEach` (the permission cache nee
 
 ### Adding a New Resource
 
-1. Create Schema, Request, and Authorizer in `app/JsonApi/V1/{ResourceName}/`
-2. Register the Schema in `app/JsonApi/V1/Server.php` → `allSchemas()`
-3. Add the route in `routes/api.php` within the `JsonApiRoute::server('v1')` block
-4. Implement authorization logic in the Authorizer (currently all stubbed with TODO)
+1. Create Schema, Request, and Authorizer in `app/JsonApi/V{n}/{ResourceName}/` (target the version you're extending — new work goes in V2)
+2. Register the Schema in `app/JsonApi/V{n}/Server.php` → `allSchemas()`
+3. Add the route in `routes/api.php` within the matching `JsonApiRoute::server('v{n}')` block
+4. Implement authorization logic in the Authorizer (public reads vs. scope+permission+ownership writes — see `CommentAuthorizer` for the V2 pattern)
+5. If writes need new scopes, declare them in `AppServiceProvider`'s `Passport::tokensCan([...])`
 
 ===
 
@@ -263,6 +273,6 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 <!-- SPECKIT START -->
 Active spec-kit feature: **Article Comments (V2)** — plan at
-`specs/001-article-comments/plan.md` (spec, research, data-model, contracts, quickstart in the
+`specs/002-article-comments/plan.md` (spec, research, data-model, contracts, quickstart in the
 same directory). Read it for technologies, structure, and conventions before implementing tasks.
 <!-- SPECKIT END -->
