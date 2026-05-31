@@ -22,6 +22,11 @@ class ArticleSchema extends Schema
     public static string $model = Article::class;
 
     /**
+     * Allow two-level includes (e.g. `comments.author`) — default is 1.
+     */
+    protected int $maxDepth = 2;
+
+    /**
      * Get the resource fields.
      */
     public function fields(): array
